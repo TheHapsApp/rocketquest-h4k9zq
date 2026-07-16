@@ -369,6 +369,11 @@
       border-color: #ff5555;
       box-shadow: 0 0 10px rgba(255,60,60,0.8);
     }
+    .fighter.captain {
+      background: radial-gradient(circle at 35% 30%, #ffe9a8, #b8860b);
+      border-color: #ffd23f;
+      box-shadow: 0 0 14px rgba(255,210,63,0.9);
+    }
     .fighter-shield {
       position: absolute;
       width: 44px;
@@ -379,6 +384,7 @@
     }
     .fighter-shield.green { border-color: #4ade80; background: rgba(74,222,128,0.15); box-shadow: 0 0 10px rgba(74,222,128,0.7); }
     .fighter-shield.purple { border-color: #b06bff; background: rgba(176,107,255,0.15); box-shadow: 0 0 10px rgba(176,107,255,0.7); }
+    .fighter-shield.gold { border-color: #ffd23f; background: rgba(255,210,63,0.15); box-shadow: 0 0 12px rgba(255,210,63,0.8); }
     .fighter-shield.flash { filter: brightness(2.2); }
     .shield-hp {
       position: absolute;
@@ -843,26 +849,39 @@
     var FIGHTER_WEAPONS = ["🏹", "⚔️"];
 
     function buildFighter(x, y, angry) {
-      var weapon = FIGHTER_WEAPONS[Math.floor(Math.random() * FIGHTER_WEAPONS.length)];
-      var isFlaming = weapon === "🏹" && Math.random() < 0.25;
-      var shieldRoll = Math.random();
-      var shield = null;
-      if (shieldRoll < 0.12) shield = { color: "purple", hp: 5, reward: 8 };
-      else if (shieldRoll < 0.35) shield = { color: "green", hp: 2, reward: 5 };
+      var isCaptain = Math.random() < 0.05; // rare!
+      var weapon, isFlaming, shield, size;
+
+      if (isCaptain) {
+        weapon = "both";
+        isFlaming = false;
+        shield = { color: "gold", hp: 10, reward: 20 };
+        size = 38;
+      } else {
+        weapon = FIGHTER_WEAPONS[Math.floor(Math.random() * FIGHTER_WEAPONS.length)];
+        isFlaming = weapon === "🏹" && Math.random() < 0.25;
+        var shieldRoll = Math.random();
+        shield = null;
+        if (shieldRoll < 0.12) shield = { color: "purple", hp: 5, reward: 8 };
+        else if (shieldRoll < 0.35) shield = { color: "green", hp: 2, reward: 5 };
+        size = 30;
+      }
 
       var el = document.createElement("div");
-      el.className = "fighter" + (angry ? " angry" : "");
-      el.textContent = isFlaming ? "👾🔥" : "👾" + weapon;
-      var size = 30;
+      el.className = "fighter" + (angry ? " angry" : "") + (isCaptain ? " captain" : "");
+      el.textContent = isCaptain ? "👑🏹⚔️" : (isFlaming ? "👾🔥" : "👾" + weapon);
       el.style.width = size + "px";
       el.style.height = size + "px";
-      el.style.fontSize = "13px";
+      el.style.fontSize = isCaptain ? "11px" : "13px";
       gw.appendChild(el);
 
       var shieldEl = null, shieldBadge = null;
       if (shield) {
         shieldEl = document.createElement("div");
         shieldEl.className = "fighter-shield " + shield.color;
+        var shieldSize = size + 14;
+        shieldEl.style.width = shieldSize + "px";
+        shieldEl.style.height = shieldSize + "px";
         shieldBadge = document.createElement("span");
         shieldBadge.className = "shield-hp";
         shieldBadge.textContent = shield.hp;
@@ -878,8 +897,9 @@
         vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
         size: size, reward: shield ? shield.reward : (angry ? 4 : 3),
         shieldEl: shieldEl, shieldBadge: shieldBadge, shieldHp: shield ? shield.hp : 0,
-        weapon: weapon, flaming: isFlaming, angry: !!angry,
-        nextArrowAt: weapon === "🏹" ? Date.now() + 1200 + Math.random() * 1300 : Infinity
+        weapon: weapon, flaming: isFlaming, angry: !!angry, captain: isCaptain,
+        meleeDamage: isCaptain ? 1 : 0.5,
+        nextArrowAt: (weapon === "🏹" || isCaptain) ? Date.now() + 1200 + Math.random() * 1300 : Infinity
       };
       alienFighters.push(f);
       return f;
@@ -1336,8 +1356,30 @@
       }
     }
 
-    function hitByAngryFighter(f) {
-      lives -= 0.5;
+    function checkAlienAsteroidCollisions() {
+      for (var i = aliens.length - 1; i >= 0; i--) {
+        var al = aliens[i];
+        var ax = al.x + al.size / 2, ay = al.y + al.size / 2;
+        for (var j = 0; j < asteroids.length; j++) {
+          var a = asteroids[j];
+          var asx = a.x + a.size / 2, asy = a.y + a.size / 2;
+          var dx = ax - asx, dy = ay - asy;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < al.size / 2 + a.size / 2) {
+            spawnExplosionAt(ax, ay);
+            addStars(al.reward);
+            spawnAngrySwarm(ax, ay, al.swarmSize);
+            al.el.remove();
+            aliens.splice(i, 1);
+            respawnAsteroid(a);
+            break;
+          }
+        }
+      }
+    }
+
+    function hitByMeleeFighter(f) {
+      lives -= f.meleeDamage;
       updateHud();
       beep(120);
       gameRocket.classList.add("hit");
@@ -1351,15 +1393,15 @@
       if (lives <= 0) crash();
     }
 
-    function checkRocketAngryFighterCollisions() {
+    function checkRocketMeleeFighterCollisions() {
       if (invulnerable) return;
       for (var i = 0; i < alienFighters.length; i++) {
         var f = alienFighters[i];
-        if (!f.angry) continue;
+        if (!f.angry && !f.captain) continue;
         var fx = f.x + f.size / 2, fy = f.y + f.size / 2;
         var dx = rocketX - fx, dy = rocketY - fy;
         var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < f.size / 2 + 18) { hitByAngryFighter(f); break; }
+        if (dist < f.size / 2 + 18) { hitByMeleeFighter(f); break; }
       }
     }
 
@@ -1385,7 +1427,8 @@
       updateBullets();
       checkRocketAsteroidCollisions();
       checkRocketAlienCollisions();
-      checkRocketAngryFighterCollisions();
+      checkRocketMeleeFighterCollisions();
+      checkAlienAsteroidCollisions();
       updateMiles();
       requestAnimationFrame(gameLoop);
     }
