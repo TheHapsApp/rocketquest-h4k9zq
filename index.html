@@ -163,6 +163,7 @@
     }
     .hud-row {
       display: flex;
+      flex-wrap: wrap;
       justify-content: center;
       gap: 18px;
       font-size: 1.1rem;
@@ -170,6 +171,7 @@
       text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
       margin-bottom: 10px;
     }
+    #fuelText.low { color: #ff4d4d; animation: flicker 0.4s ease infinite alternate; }
     .challenge-card {
       max-width: 340px;
       margin: 0 auto 10px;
@@ -349,12 +351,13 @@
         <div>⭐ <span id="starsText">0</span></div>
         <div>🛰️ <span id="milesText">0</span> mi</div>
         <div id="livesText">❤️ × 3</div>
+        <div>⛽ <span id="fuelText">3:00</span></div>
       </div>
       <div class="challenge-card" id="challengeCard">
         <div class="challenge-label">🎯 Challenge</div>
         <div class="challenge-text" id="challengeText">-</div>
       </div>
-      <div class="controls-hint">🖱️ Move your mouse to fly &middot; Press A (or tap 🔫) to shoot</div>
+      <div class="controls-hint">🖱️ Move your mouse to fly &middot; Press A (or tap 🔫) to shoot &middot; Shoot ⭐ for fuel!</div>
     </div>
 
     <div class="game-world" id="gameWorld">
@@ -374,8 +377,8 @@
 
     <div class="gameover-overlay" id="gameoverOverlay">
       <div class="gameover-card">
-        <div style="font-size:3.2rem;">💥</div>
-        <h2>You Crashed!</h2>
+        <div id="gameoverIcon" style="font-size:3.2rem;">💥</div>
+        <h2 id="gameoverTitle">You Crashed!</h2>
         <p id="gameoverStats"></p>
         <button class="big-btn" id="flyAgainBtn">🔄 Fly Again</button>
       </div>
@@ -434,6 +437,7 @@
     var starsText = document.getElementById("starsText");
     var milesText = document.getElementById("milesText");
     var livesText = document.getElementById("livesText");
+    var fuelText = document.getElementById("fuelText");
     var challengeText = document.getElementById("challengeText");
     var challengeCard = document.getElementById("challengeCard");
 
@@ -442,6 +446,8 @@
     var running = false;
     var invulnerable = false;
     var distanceAccum = 0;
+    var fuelSeconds = 180;
+    var fuelTimer = null;
 
     var mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
     var rocketX = mouseX, rocketY = mouseY;
@@ -483,9 +489,10 @@
     var alienTimer = null;
     var starBankForLife = 0;
     var ALIEN_TIERS = [
-      { size: 38, hp: 1, reward: 4 },
-      { size: 58, hp: 2, reward: 9 },
-      { size: 80, hp: 3, reward: 16 }
+      { size: 44,  hp: 5,  reward: 10, damage: 0.5 },
+      { size: 64,  hp: 10, reward: 20, damage: 1 },
+      { size: 88,  hp: 20, reward: 40, damage: 1.5 },
+      { size: 110, hp: 30, reward: 60, damage: 2 }
     ];
 
     function randPos(size) {
@@ -562,7 +569,7 @@
       aliens.push({
         el: el, hpBadge: hpBadge, x: pos.x, y: pos.y,
         vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-        size: tier.size, hp: tier.hp, reward: tier.reward
+        size: tier.size, hp: tier.hp, reward: tier.reward, damage: tier.damage
       });
     }
 
@@ -597,6 +604,30 @@
       livesText.classList.add("lives-gain");
     }
 
+    function updateFuelDisplay() {
+      var m = Math.floor(fuelSeconds / 60);
+      var s = fuelSeconds % 60;
+      fuelText.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+      fuelText.classList.toggle("low", fuelSeconds <= 30);
+    }
+
+    function refuel() {
+      fuelSeconds = 180;
+      updateFuelDisplay();
+    }
+
+    function startFuelTimer() {
+      clearInterval(fuelTimer);
+      fuelTimer = setInterval(function () {
+        fuelSeconds--;
+        updateFuelDisplay();
+        if (fuelSeconds <= 0) {
+          clearInterval(fuelTimer);
+          outOfFuel();
+        }
+      }, 1000);
+    }
+
     function addStars(n) {
       stars += n;
       starBankForLife += n;
@@ -610,10 +641,15 @@
       checkChallenge();
     }
 
+    function formatLives(n) {
+      n = Math.max(n, 0);
+      return (n % 1 === 0) ? String(n) : n.toFixed(1);
+    }
+
     function updateHud() {
       starsText.textContent = stars;
       milesText.textContent = miles;
-      livesText.textContent = "❤️ × " + Math.max(lives, 0);
+      livesText.textContent = "❤️ × " + formatLives(lives);
     }
 
     function randomChallenge() {
@@ -642,9 +678,10 @@
       challengeCard.classList.remove("done");
       void challengeCard.offsetWidth;
       challengeCard.classList.add("done");
-      challengeText.textContent = "🎉 Nice! +10 bonus stars!";
+      challengeText.textContent = "🎉 Nice! +30 bonus stars!";
       beep(950);
-      addStars(10);
+      addStars(30);
+      refuel();
       setTimeout(function () { newChallenge(); }, 1400);
     }
 
@@ -655,7 +692,7 @@
     }
 
     function hitByAsteroid(a) {
-      lives--;
+      lives -= 0.5;
       updateHud();
       beep(120);
       gameRocket.classList.add("hit");
@@ -666,7 +703,7 @@
     }
 
     function hitByAlien(al) {
-      lives--;
+      lives -= al.damage;
       updateHud();
       beep(120);
       gameRocket.classList.add("hit");
@@ -682,13 +719,30 @@
     function crash() {
       running = false;
       clearTimeout(alienTimer);
+      clearInterval(fuelTimer);
       beep(80);
       spawnExplosionAt(rocketX, rocketY);
       gameRocket.style.display = "none";
       setTimeout(function () {
+        document.getElementById("gameoverIcon").textContent = "💥";
+        document.getElementById("gameoverTitle").textContent = "You Crashed!";
         document.getElementById("gameoverStats").textContent = "⭐ " + stars + " stars flown with 🛰️ " + miles + " miles!";
         document.getElementById("gameoverOverlay").style.display = "flex";
       }, 550);
+    }
+
+    function outOfFuel() {
+      running = false;
+      clearTimeout(alienTimer);
+      clearInterval(fuelTimer);
+      beep(100);
+      gameRocket.style.display = "none";
+      setTimeout(function () {
+        document.getElementById("gameoverIcon").textContent = "⛽";
+        document.getElementById("gameoverTitle").textContent = "Out of Fuel!";
+        document.getElementById("gameoverStats").textContent = "⭐ " + stars + " stars flown with 🛰️ " + miles + " miles!";
+        document.getElementById("gameoverOverlay").style.display = "flex";
+      }, 400);
     }
 
     function updateRocket() {
@@ -752,6 +806,23 @@
               al.el.classList.add("flash");
               setTimeout((function (el) { return function () { el.classList.remove("flash"); }; })(al.el), 150);
             }
+            hit = true;
+            break;
+          }
+        }
+        if (hit) continue;
+
+        for (var m = 0; m < starsList.length; m++) {
+          var s = starsList[m];
+          var sx = s.x + s.size / 2, sy = s.y + s.size / 2;
+          if (Math.abs(b.x - sx) < s.size / 2 + 6 && Math.abs(b.y - sy) < s.size / 2 + 6) {
+            b.el.remove(); bullets.splice(i, 1);
+            s.el.remove();
+            starsList.splice(m, 1);
+            beep(600 + Math.random() * 200);
+            refuel();
+            addStars(1);
+            starsList.push(spawnStar());
             break;
           }
         }
@@ -766,22 +837,6 @@
         var dx = rocketX - ax, dy = rocketY - ay;
         var dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < a.size / 2 + 20) { hitByAsteroid(a); break; }
-      }
-    }
-
-    function checkRocketStarCollisions() {
-      for (var i = starsList.length - 1; i >= 0; i--) {
-        var s = starsList[i];
-        var sx = s.x + s.size / 2, sy = s.y + s.size / 2;
-        var dx = rocketX - sx, dy = rocketY - sy;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < s.size / 2 + 22) {
-          s.el.remove();
-          starsList.splice(i, 1);
-          beep(600 + Math.random() * 200);
-          addStars(1);
-          starsList.push(spawnStar());
-        }
       }
     }
 
@@ -826,7 +881,6 @@
       updateBullets();
       checkRocketAsteroidCollisions();
       checkRocketAlienCollisions();
-      checkRocketStarCollisions();
       updateMiles();
       requestAnimationFrame(gameLoop);
     }
@@ -839,6 +893,8 @@
 
       stars = 0; miles = 0; lives = 3; distanceAccum = 0; starBankForLife = 0;
       updateHud();
+      refuel();
+      startFuelTimer();
       clearBullets();
       clearAliens();
       initAsteroids();
@@ -864,6 +920,7 @@
     document.getElementById("rebuildBtn").addEventListener("click", function () {
       running = false;
       clearTimeout(alienTimer);
+      clearInterval(fuelTimer);
       document.getElementById("gameScreen").style.display = "none";
       document.getElementById("buildScreen").parentElement.style.display = "block";
     });
