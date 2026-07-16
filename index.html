@@ -562,10 +562,10 @@
     var alienTimer = null;
     var starBankForLife = 0;
     var ALIEN_TIERS = [
-      { size: 44,  hp: 5,  reward: 10, damage: 0.5 },
-      { size: 64,  hp: 10, reward: 20, damage: 1 },
-      { size: 88,  hp: 20, reward: 40, damage: 1.5 },
-      { size: 110, hp: 30, reward: 60, damage: 2 }
+      { size: 44,  hp: 5,  reward: 10, damage: 0.5, fighterInterval: 30000 },
+      { size: 64,  hp: 10, reward: 20, damage: 1,   fighterInterval: 15000 },
+      { size: 88,  hp: 20, reward: 40, damage: 1.5, fighterInterval: 7500 },
+      { size: 110, hp: 30, reward: 60, damage: 2,   fighterInterval: 5000 }
     ];
 
     var ITEM_SPECS = [
@@ -752,7 +752,8 @@
         el: el, hpBadge: hpBadge, x: pos.x, y: pos.y,
         vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
         size: tier.size, hp: tier.hp, reward: tier.reward, damage: tier.damage,
-        nextLaunch: Date.now() + 2500 + Math.random() * 3000
+        fighterInterval: tier.fighterInterval,
+        nextLaunch: Date.now() + tier.fighterInterval * (0.6 + Math.random() * 0.6)
       });
     }
 
@@ -1092,7 +1093,7 @@
 
         if (now >= a.nextLaunch && alienFighters.length < 8) {
           spawnFighter(a);
-          a.nextLaunch = now + 2500 + Math.random() * 3000;
+          a.nextLaunch = now + a.fighterInterval * (0.7 + Math.random() * 0.6);
         }
       });
     }
@@ -1121,30 +1122,8 @@
       }
     }
 
-    function hitByFighter(f) {
-      lives -= f.damage;
-      updateHud();
-      beep(120);
-      gameRocket.classList.add("hit");
-      invulnerable = true;
-      setTimeout(function () { gameRocket.classList.remove("hit"); invulnerable = false; }, 1200);
-      spawnExplosionAt(f.x + f.size / 2, f.y + f.size / 2);
-      f.el.remove();
-      var idx = alienFighters.indexOf(f);
-      if (idx >= 0) alienFighters.splice(idx, 1);
-      if (lives <= 0) crash();
-    }
-
-    function checkRocketFighterCollisions() {
-      if (invulnerable) return;
-      for (var i = 0; i < alienFighters.length; i++) {
-        var f = alienFighters[i];
-        var fx = f.x + f.size / 2, fy = f.y + f.size / 2;
-        var dx = rocketX - fx, dy = rocketY - fy;
-        var dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < f.size / 2 + 18) { hitByFighter(f); break; }
-      }
-    }
+    // Fighters (lone alien drones without a ship) are harmless on contact —
+    // they can only be dealt with by shooting them.
 
     function updateMiles() {
       var dx = rocketX - lastRocketX, dy = rocketY - lastRocketY;
@@ -1164,7 +1143,6 @@
       updateBullets();
       checkRocketAsteroidCollisions();
       checkRocketAlienCollisions();
-      checkRocketFighterCollisions();
       updateMiles();
       requestAnimationFrame(gameLoop);
     }
