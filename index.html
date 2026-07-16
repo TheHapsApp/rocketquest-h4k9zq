@@ -1122,7 +1122,7 @@
 
     // Explode, flash rapidly, then disappear.
     function spawnDebris(x, y) {
-      var count = 6 + Math.floor(Math.random() * 3);
+      var count = 14 + Math.floor(Math.random() * 7);
       for (var i = 0; i < count; i++) {
         var el = document.createElement("div");
         el.className = "debris";
@@ -1134,7 +1134,7 @@
         gw.appendChild(el);
 
         var angle = Math.random() * Math.PI * 2;
-        var dist = 60 + Math.random() * 100;
+        var dist = 60 + Math.random() * 150;
         var dx = Math.cos(angle) * dist;
         var dy = Math.sin(angle) * dist + 50; // drifting downward, off into deep space
         var rot = Math.random() * 720 - 360;
