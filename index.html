@@ -219,7 +219,6 @@
       justify-content: center;
       font-size: 1.4rem;
       animation: starGlow 1.2s ease-in-out infinite alternate;
-      cursor: pointer;
     }
     .item-badge {
       position: absolute;
@@ -408,7 +407,7 @@
         <div class="challenge-text" id="challengeText">-</div>
       </div>
       <div class="item-hud" id="itemHud" style="display:none;">🎒 <span id="heldItemText"></span> &mdash; press U!</div>
-      <div class="controls-hint">🖱️ Move your mouse to fly &middot; Press A (or tap 🔫) to shoot &middot; Shoot ⭐ for fuel! &middot; Right-click items to grab, press U to use!</div>
+      <div class="controls-hint">🖱️ Move your mouse to fly &middot; Press A (or tap 🔫) to shoot &middot; Shoot ⭐ for fuel! &middot; Fly onto an item and press P to grab, press U to use!</div>
     </div>
 
     <div class="game-world" id="gameWorld">
@@ -545,6 +544,7 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "a" || e.key === "A") shoot();
       if ((e.key === "u" || e.key === "U") && heldItem) useItem();
+      if (e.key === "p" || e.key === "P") tryPickupItem();
     });
     document.getElementById("shootFab").addEventListener("click", shoot);
 
@@ -659,11 +659,18 @@
       var pos = randPos(size);
       el.style.left = pos.x + "px";
       el.style.top = pos.y + "px";
-      el.addEventListener("contextmenu", function (e) {
-        e.preventDefault();
-        pickUpItem(spec.type, el);
-      });
       worldItems.push({ el: el, type: spec.type, x: pos.x, y: pos.y, size: size });
+    }
+
+    function tryPickupItem() {
+      if (!running) return;
+      for (var i = 0; i < worldItems.length; i++) {
+        var w = worldItems[i];
+        var wx = w.x + w.size / 2, wy = w.y + w.size / 2;
+        var dx = rocketX - wx, dy = rocketY - wy;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < w.size / 2 + 32) { pickUpItem(w.type, w.el); break; }
+      }
     }
 
     function scheduleNextItem() {
@@ -724,9 +731,10 @@
     }
 
     function useItem() {
-      if (heldItem === "mega") activateMultiShot(3, 10000);
-      else if (heldItem === "ultra") activateMultiShot(5, 10000);
-      else if (heldItem === "clone") activateClone(10000);
+      var FIVE_MIN = 5 * 60 * 1000;
+      if (heldItem === "mega") activateMultiShot(3, FIVE_MIN);
+      else if (heldItem === "ultra") activateMultiShot(5, FIVE_MIN);
+      else if (heldItem === "clone") activateClone(FIVE_MIN);
       beep(1200);
       heldItem = null;
       updateItemHud();
