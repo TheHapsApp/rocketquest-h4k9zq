@@ -274,6 +274,34 @@
     }
     .gameover-card h2 { margin: 10px 0; text-shadow: 2px 2px 0 rgba(0,0,0,0.3); }
     .gameover-card p { margin-bottom: 16px; font-size: 1rem; }
+
+    .alien {
+      position: absolute;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 35% 30%, #7ee08a, #1f7a3d);
+      border: 3px solid rgba(255,255,255,0.7);
+    }
+    .alien.flash { filter: brightness(2.2); }
+    .alien-hp {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #ff3b3b;
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: bold;
+      border-radius: 999px;
+      min-width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+    }
+    #livesText.lives-gain { animation: popIn 0.4s ease; }
   </style>
 </head>
 <body>
@@ -320,7 +348,7 @@
       <div class="hud-row">
         <div>⭐ <span id="starsText">0</span></div>
         <div>🛰️ <span id="milesText">0</span> mi</div>
-        <div id="livesText">❤️❤️❤️</div>
+        <div id="livesText">❤️ × 3</div>
       </div>
       <div class="challenge-card" id="challengeCard">
         <div class="challenge-label">🎯 Challenge</div>
@@ -451,6 +479,14 @@
     var asteroids = [];
     var starsList = [];
     var bullets = [];
+    var aliens = [];
+    var alienTimer = null;
+    var starBankForLife = 0;
+    var ALIEN_TIERS = [
+      { size: 38, hp: 1, reward: 4 },
+      { size: 58, hp: 2, reward: 9 },
+      { size: 80, hp: 3, reward: 16 }
+    ];
 
     function randPos(size) {
       return {
@@ -507,12 +543,77 @@
       bullets = [];
     }
 
+    function spawnAlien() {
+      var tier = ALIEN_TIERS[Math.floor(Math.random() * ALIEN_TIERS.length)];
+      var el = document.createElement("div");
+      el.className = "alien";
+      el.style.width = tier.size + "px";
+      el.style.height = tier.size + "px";
+      el.style.fontSize = Math.round(tier.size * 0.55) + "px";
+      el.textContent = "👾";
+      var hpBadge = document.createElement("span");
+      hpBadge.className = "alien-hp";
+      hpBadge.textContent = tier.hp;
+      el.appendChild(hpBadge);
+      gw.appendChild(el);
+      var pos = randPos(tier.size);
+      var angle = Math.random() * Math.PI * 2;
+      var speed = 0.6 + Math.random() * 0.8;
+      aliens.push({
+        el: el, hpBadge: hpBadge, x: pos.x, y: pos.y,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        size: tier.size, hp: tier.hp, reward: tier.reward
+      });
+    }
+
+    function scheduleNextAlien() {
+      clearTimeout(alienTimer);
+      alienTimer = setTimeout(function () {
+        if (running) {
+          if (aliens.length < 3) spawnAlien();
+          scheduleNextAlien();
+        }
+      }, 4000 + Math.random() * 3000);
+    }
+
+    function clearAliens() {
+      aliens.forEach(function (a) { a.el.remove(); });
+      aliens = [];
+    }
+
+    function spawnExplosionAt(x, y) {
+      var boom = document.createElement("div");
+      boom.className = "explosion";
+      boom.textContent = "💥";
+      boom.style.left = (x - 30) + "px";
+      boom.style.top = (y - 30) + "px";
+      gw.appendChild(boom);
+      setTimeout(function () { boom.remove(); }, 600);
+    }
+
+    function flashLifeGain() {
+      livesText.classList.remove("lives-gain");
+      void livesText.offsetWidth;
+      livesText.classList.add("lives-gain");
+    }
+
+    function addStars(n) {
+      stars += n;
+      starBankForLife += n;
+      while (starBankForLife >= 5) {
+        starBankForLife -= 5;
+        lives++;
+        beep(1100);
+        flashLifeGain();
+      }
+      updateHud();
+      checkChallenge();
+    }
+
     function updateHud() {
       starsText.textContent = stars;
       milesText.textContent = miles;
-      var hearts = "";
-      for (var i = 0; i < 3; i++) hearts += (i < lives ? "❤️" : "🖤");
-      livesText.textContent = hearts;
+      livesText.textContent = "❤️ × " + Math.max(lives, 0);
     }
 
     function randomChallenge() {
@@ -537,14 +638,14 @@
     }
 
     function completeChallenge() {
+      currentChallenge = null; // avoid re-triggering while the bonus/transition plays out
       challengeCard.classList.remove("done");
       void challengeCard.offsetWidth;
       challengeCard.classList.add("done");
-      stars += 10;
-      updateHud();
-      beep(950);
       challengeText.textContent = "🎉 Nice! +10 bonus stars!";
-      setTimeout(function () { newChallenge(); checkChallenge(); }, 1400);
+      beep(950);
+      addStars(10);
+      setTimeout(function () { newChallenge(); }, 1400);
     }
 
     function checkChallenge() {
@@ -564,18 +665,27 @@
       if (lives <= 0) crash();
     }
 
+    function hitByAlien(al) {
+      lives--;
+      updateHud();
+      beep(120);
+      gameRocket.classList.add("hit");
+      invulnerable = true;
+      setTimeout(function () { gameRocket.classList.remove("hit"); invulnerable = false; }, 1200);
+      spawnExplosionAt(al.x + al.size / 2, al.y + al.size / 2);
+      al.el.remove();
+      var idx = aliens.indexOf(al);
+      if (idx >= 0) aliens.splice(idx, 1);
+      if (lives <= 0) crash();
+    }
+
     function crash() {
       running = false;
+      clearTimeout(alienTimer);
       beep(80);
-      var boom = document.createElement("div");
-      boom.className = "explosion";
-      boom.textContent = "💥";
-      boom.style.left = (rocketX - 30) + "px";
-      boom.style.top = (rocketY - 30) + "px";
-      gw.appendChild(boom);
+      spawnExplosionAt(rocketX, rocketY);
       gameRocket.style.display = "none";
       setTimeout(function () {
-        boom.remove();
         document.getElementById("gameoverStats").textContent = "⭐ " + stars + " stars flown with 🛰️ " + miles + " miles!";
         document.getElementById("gameoverOverlay").style.display = "flex";
       }, 550);
@@ -609,18 +719,39 @@
         b.el.style.left = b.x + "px";
         b.el.style.top = b.y + "px";
         var hit = false;
+
         for (var j = 0; j < asteroids.length; j++) {
           var a = asteroids[j];
           var ax = a.x + a.size / 2, ay = a.y + a.size / 2;
           if (Math.abs(b.x - ax) < a.size / 2 + 6 && Math.abs(b.y - ay) < a.size / 2 + 6) {
             b.el.remove(); bullets.splice(i, 1);
-            stars += 2;
-            updateHud();
             beep(950);
             if (currentChallenge && currentChallenge.type === "shoot" && currentChallenge.color === a.color) completeChallenge();
+            addStars(2);
             respawnAsteroid(a);
-            checkChallenge();
             hit = true;
+            break;
+          }
+        }
+        if (hit) continue;
+
+        for (var k = 0; k < aliens.length; k++) {
+          var al = aliens[k];
+          var alx = al.x + al.size / 2, aly = al.y + al.size / 2;
+          if (Math.abs(b.x - alx) < al.size / 2 + 6 && Math.abs(b.y - aly) < al.size / 2 + 6) {
+            b.el.remove(); bullets.splice(i, 1);
+            al.hp--;
+            beep(500);
+            if (al.hp <= 0) {
+              spawnExplosionAt(alx, aly);
+              addStars(al.reward);
+              al.el.remove();
+              aliens.splice(k, 1);
+            } else {
+              al.hpBadge.textContent = al.hp;
+              al.el.classList.add("flash");
+              setTimeout((function (el) { return function () { el.classList.remove("flash"); }; })(al.el), 150);
+            }
             break;
           }
         }
@@ -647,12 +778,34 @@
         if (dist < s.size / 2 + 22) {
           s.el.remove();
           starsList.splice(i, 1);
-          stars += 1;
-          updateHud();
           beep(600 + Math.random() * 200);
-          checkChallenge();
+          addStars(1);
           starsList.push(spawnStar());
         }
+      }
+    }
+
+    function updateAliens() {
+      aliens.forEach(function (a) {
+        a.x += a.vx;
+        a.y += a.vy;
+        if (a.x <= 0 || a.x >= window.innerWidth - a.size) a.vx *= -1;
+        if (a.y <= 0 || a.y >= window.innerHeight - a.size) a.vy *= -1;
+        a.x = Math.max(0, Math.min(window.innerWidth - a.size, a.x));
+        a.y = Math.max(0, Math.min(window.innerHeight - a.size, a.y));
+        a.el.style.left = a.x + "px";
+        a.el.style.top = a.y + "px";
+      });
+    }
+
+    function checkRocketAlienCollisions() {
+      if (invulnerable) return;
+      for (var i = 0; i < aliens.length; i++) {
+        var al = aliens[i];
+        var ax = al.x + al.size / 2, ay = al.y + al.size / 2;
+        var dx = rocketX - ax, dy = rocketY - ay;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < al.size / 2 + 20) { hitByAlien(al); break; }
       }
     }
 
@@ -669,8 +822,10 @@
       if (!running) return;
       updateRocket();
       updateAsteroids();
+      updateAliens();
       updateBullets();
       checkRocketAsteroidCollisions();
+      checkRocketAlienCollisions();
       checkRocketStarCollisions();
       updateMiles();
       requestAnimationFrame(gameLoop);
@@ -682,12 +837,14 @@
       document.getElementById("gameoverOverlay").style.display = "none";
       gameRocket.style.display = "";
 
-      stars = 0; miles = 0; lives = 3; distanceAccum = 0;
+      stars = 0; miles = 0; lives = 3; distanceAccum = 0; starBankForLife = 0;
       updateHud();
       clearBullets();
+      clearAliens();
       initAsteroids();
       initStars();
       newChallenge();
+      scheduleNextAlien();
 
       mouseX = window.innerWidth / 2; mouseY = window.innerHeight / 2;
       rocketX = mouseX; rocketY = mouseY;
@@ -706,6 +863,7 @@
 
     document.getElementById("rebuildBtn").addEventListener("click", function () {
       running = false;
+      clearTimeout(alienTimer);
       document.getElementById("gameScreen").style.display = "none";
       document.getElementById("buildScreen").parentElement.style.display = "block";
     });
