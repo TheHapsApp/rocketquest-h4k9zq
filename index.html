@@ -351,6 +351,7 @@
       padding: 6px 14px;
       cursor: pointer;
     }
+    .corner-btn.pause-btn { left: 12px; right: auto; }
 
     .gameover-overlay {
       display: none;
@@ -594,6 +595,7 @@
 
     <button class="shoot-fab" id="shootFab">🔫</button>
     <button class="corner-btn" id="rebuildBtn">🎨 Rebuild</button>
+    <button class="corner-btn pause-btn" id="pauseBtn">⏸️ Pause</button>
 
     <div class="gameover-overlay" id="gameoverOverlay">
       <div class="gameover-card">
@@ -601,6 +603,14 @@
         <h2 id="gameoverTitle">You Crashed!</h2>
         <p id="gameoverStats"></p>
         <button class="big-btn" id="flyAgainBtn">🔄 Fly Again</button>
+      </div>
+    </div>
+
+    <div class="gameover-overlay" id="pauseOverlay" style="display:none;">
+      <div class="gameover-card">
+        <div style="font-size:3.2rem;">⏸️</div>
+        <h2>Paused</h2>
+        <button class="big-btn" id="resumeBtn">▶️ Resume</button>
       </div>
     </div>
   </div>
@@ -664,6 +674,7 @@
     var stars = 0, miles = 0, lives = 3;
     var currentChallenge = null;
     var running = false;
+    var paused = false;
     var invulnerable = false;
     var distanceAccum = 0;
     var fuelSeconds = 180;
@@ -693,7 +704,7 @@
     }
 
     function shoot() {
-      if (!running) return;
+      if (!running || paused) return;
       var now = Date.now();
       if (now - lastShot < 250) return;
       lastShot = now;
@@ -714,6 +725,7 @@
 
     var lastFlip = 0;
     function flipRocket() {
+      if (!running || paused) return;
       var now = Date.now();
       if (now - lastFlip < 700) return;
       lastFlip = now;
@@ -725,7 +737,7 @@
 
     document.addEventListener("keydown", function (e) {
       if (e.key === "a" || e.key === "A") shoot();
-      if ((e.key === "u" || e.key === "U") && heldItem) useItem();
+      if ((e.key === "u" || e.key === "U") && heldItem && running && !paused) useItem();
       if (e.key === "p" || e.key === "P") tryPickupItem();
       if (e.key === "f" || e.key === "F") flipRocket();
     });
@@ -852,7 +864,7 @@
     }
 
     function tryPickupItem() {
-      if (!running) return;
+      if (!running || paused) return;
       for (var i = 0; i < worldItems.length; i++) {
         var w = worldItems[i];
         var wx = w.x + w.size / 2, wy = w.y + w.size / 2;
@@ -1700,6 +1712,7 @@
 
     function gameLoop() {
       if (!running) return;
+      if (paused) { requestAnimationFrame(gameLoop); return; }
       updateRocket();
       updateAsteroids();
       updateAliens();
@@ -1719,8 +1732,11 @@
       document.getElementById("buildScreen").parentElement.style.display = "none";
       document.getElementById("gameScreen").style.display = "block";
       document.getElementById("gameoverOverlay").style.display = "none";
+      document.getElementById("pauseOverlay").style.display = "none";
       gameRocket.style.display = "";
 
+      paused = false;
+      pauseBtn.textContent = "⏸️ Pause";
       stars = 0; miles = 0; lives = 3; distanceAccum = 0; starBankForLife = 0;
       updateHud();
       refuel();
@@ -1763,6 +1779,8 @@
 
     document.getElementById("rebuildBtn").addEventListener("click", function () {
       running = false;
+      paused = false;
+      document.getElementById("pauseOverlay").style.display = "none";
       clearTimeout(alienTimer);
       clearInterval(fuelTimer);
       clearTimeout(itemTimer);
@@ -1772,6 +1790,34 @@
       document.getElementById("gameScreen").style.display = "none";
       document.getElementById("buildScreen").parentElement.style.display = "block";
     });
+
+    var pauseBtn = document.getElementById("pauseBtn");
+    var pauseOverlay = document.getElementById("pauseOverlay");
+
+    function pauseGame() {
+      if (!running || paused) return;
+      paused = true;
+      clearTimeout(alienTimer);
+      clearInterval(fuelTimer);
+      clearTimeout(itemTimer);
+      pauseBtn.textContent = "▶️ Resume";
+      pauseOverlay.style.display = "flex";
+    }
+
+    function resumeGame() {
+      if (!running || !paused) return;
+      paused = false;
+      startFuelTimer();
+      scheduleNextAlien();
+      scheduleNextItem();
+      pauseBtn.textContent = "⏸️ Pause";
+      pauseOverlay.style.display = "none";
+    }
+
+    pauseBtn.addEventListener("click", function () {
+      if (paused) resumeGame(); else pauseGame();
+    });
+    document.getElementById("resumeBtn").addEventListener("click", resumeGame);
 
     document.getElementById("gameScreen").addEventListener("contextmenu", function (e) {
       e.preventDefault();
