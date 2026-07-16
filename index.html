@@ -304,6 +304,16 @@
       70% { transform: scale(1.6); opacity: 1; }
       100% { transform: scale(2); opacity: 0; }
     }
+    .impact {
+      position: absolute;
+      font-size: 1rem;
+      animation: impactPop 0.3s ease forwards;
+      pointer-events: none;
+    }
+    @keyframes impactPop {
+      0%   { transform: scale(0.5); opacity: 1; }
+      100% { transform: scale(1.7); opacity: 0; }
+    }
     #gameRocket { position: absolute; z-index: 3; }
 
     .shoot-fab {
@@ -1067,6 +1077,16 @@
       setTimeout(function () { boom.remove(); }, 600);
     }
 
+    function spawnImpactAt(x, y) {
+      var el = document.createElement("div");
+      el.className = "impact";
+      el.textContent = "💥";
+      el.style.left = (x - 8) + "px";
+      el.style.top = (y - 8) + "px";
+      gw.appendChild(el);
+      setTimeout(function () { el.remove(); }, 300);
+    }
+
     function flashLifeGain() {
       livesText.classList.remove("lives-gain");
       void livesText.offsetWidth;
@@ -1262,6 +1282,7 @@
           var ax = a.x + a.size / 2, ay = a.y + a.size / 2;
           if (Math.abs(b.x - ax) < a.size / 2 + 6 && Math.abs(b.y - ay) < a.size / 2 + 6) {
             b.el.remove(); bullets.splice(i, 1);
+            spawnImpactAt(ax, ay);
             beep(950);
             if (currentChallenge && currentChallenge.type === "shoot" && currentChallenge.color === a.color) completeChallenge();
             addStars(2);
@@ -1286,6 +1307,7 @@
               al.el.remove();
               aliens.splice(k, 1);
             } else {
+              spawnImpactAt(alx, aly);
               al.hpBadge.textContent = al.hp;
               al.el.classList.add("flash");
               setTimeout((function (el) { return function () { el.classList.remove("flash"); }; })(al.el), 150);
@@ -1303,6 +1325,7 @@
             b.el.remove(); bullets.splice(i, 1);
             if (f.shieldHp > 0) {
               f.shieldHp--;
+              spawnImpactAt(fx, fy);
               beep(400);
               if (f.shieldHp <= 0) {
                 f.shieldEl.remove();
@@ -1332,6 +1355,7 @@
             b.el.remove(); bullets.splice(i, 1);
             s.el.remove();
             starsList.splice(m, 1);
+            spawnImpactAt(sx, sy);
             beep(600 + Math.random() * 200);
             refuel();
             addStars(1);
