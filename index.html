@@ -118,6 +118,13 @@
       margin: 10px 0 30px;
       transform: scale(1.4);
     }
+    #previewRocket.launching {
+      animation: previewLaunch 0.9s ease-in forwards;
+    }
+    @keyframes previewLaunch {
+      0%   { transform: translateY(0) scale(1); opacity: 1; }
+      100% { transform: translateY(-480px) scale(0.4); opacity: 0; }
+    }
     .picker-group { margin-bottom: 20px; text-align: left; }
     .picker-label {
       font-size: 1rem;
@@ -520,7 +527,7 @@
       <p class="sub">Build your rocket, pick your colors, then blast off!</p>
 
       <div class="rocket-preview-wrap">
-        <div class="rocket-unit">
+        <div class="rocket-unit" id="previewRocket">
           <div class="rocket-nose"></div>
           <div class="rocket-body">
             <div class="rocket-window"></div>
@@ -1698,8 +1705,18 @@
     }
 
     document.getElementById("blastOffBtn").addEventListener("click", function () {
+      var blastBtn = this;
+      var previewRocket = document.getElementById("previewRocket");
+      blastBtn.disabled = true;
+      blastBtn.textContent = "🚀 Blasting Off...";
       beep(800);
-      startGame();
+      previewRocket.classList.add("launching");
+      setTimeout(function () {
+        startGame();
+        previewRocket.classList.remove("launching");
+        blastBtn.disabled = false;
+        blastBtn.textContent = "🚀 Blast Off!";
+      }, 900);
     });
 
     document.getElementById("flyAgainBtn").addEventListener("click", startGame);
