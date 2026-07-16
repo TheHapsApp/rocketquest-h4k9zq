@@ -376,6 +376,8 @@
       border: 3px solid rgba(255,255,255,0.8);
     }
     .alien.flash { filter: brightness(2.2); }
+    .alien.dying { animation: dyingFlash 0.08s steps(1) infinite; }
+    @keyframes dyingFlash { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.1; } }
     .fighter {
       position: absolute;
       border-radius: 50%;
@@ -770,7 +772,11 @@
 
     function initAsteroids() {
       asteroids.forEach(function (a) { a.el.remove(); });
-      asteroids = ASTEROID_SPECS.map(spawnAsteroid);
+      asteroids = [];
+      ASTEROID_SPECS.forEach(function (spec) {
+        asteroids.push(spawnAsteroid(spec));
+        asteroids.push(spawnAsteroid(spec));
+      });
     }
 
     function respawnAsteroid(a) {
@@ -990,7 +996,7 @@
         shieldEl: shieldEl, shieldBadge: shieldBadge, shieldHp: shield ? shield.hp : 0,
         weapon: weapon, flaming: isFlaming, angry: !!angry, captain: isCaptain, captainType: captainType,
         meleeDamage: isCaptain ? 1 : 0.5,
-        canShoot: canShoot,
+        canShoot: canShoot, dead: false, spawnedAt: Date.now(),
         nextArrowAt: canShoot ? Date.now() + 1200 + Math.random() * 1300 : Infinity
       };
       alienFighters.push(f);
@@ -1085,6 +1091,113 @@
       el.style.top = (y - 8) + "px";
       gw.appendChild(el);
       setTimeout(function () { el.remove(); }, 300);
+    }
+
+    // Explode, flash rapidly, then disappear.
+    function destroyShip(al) {
+      var ax = al.x + al.size / 2, ay = al.y + al.size / 2;
+      spawnExplosionAt(ax, ay);
+      addStars(al.reward);
+      spawnAngrySwarm(ax, ay, al.swarmSize);
+      var idx = aliens.indexOf(al);
+      if (idx >= 0) aliens.splice(idx, 1);
+      al.el.classList.add("dying");
+      setTimeout(function () { al.el.remove(); }, 400);
+    }
+
+    function updateAlienHpVisual(al) {
+      al.hpBadge.textContent = Math.max(al.hp, 0);
+      al.el.classList.add("flash");
+      setTimeout((function (el) { return function () { el.classList.remove("flash"); }; })(al.el), 150);
+    }
+
+    function damageFighterHp(f) {
+      if (f.dead) return;
+      if (f.shieldHp > 0) {
+        f.shieldHp--;
+        if (f.shieldHp <= 0) {
+          f.shieldEl.remove();
+          f.shieldEl = null;
+        } else {
+          f.shieldBadge.textContent = f.shieldHp;
+          f.shieldEl.classList.add("flash");
+          setTimeout((function (el) { return function () { el.classList.remove("flash"); }; })(f.shieldEl), 150);
+        }
+      } else {
+        f.dead = true;
+      }
+    }
+
+    function checkAlienFriendlyFire() {
+      var now = Date.now();
+
+      // ship vs ship
+      for (var i = 0; i < aliens.length; i++) {
+        var al1 = aliens[i];
+        if (al1.hp <= 0) continue;
+        var a1x = al1.x + al1.size / 2, a1y = al1.y + al1.size / 2;
+        for (var j = i + 1; j < aliens.length; j++) {
+          var al2 = aliens[j];
+          if (al2.hp <= 0) continue;
+          var a2x = al2.x + al2.size / 2, a2y = al2.y + al2.size / 2;
+          var dx = a1x - a2x, dy = a1y - a2y;
+          if (Math.sqrt(dx * dx + dy * dy) < al1.size / 2 + al2.size / 2) {
+            al1.hp--; al2.hp--;
+            al1.vx *= -1; al1.vy *= -1;
+            al2.vx *= -1; al2.vy *= -1;
+            updateAlienHpVisual(al1);
+            updateAlienHpVisual(al2);
+          }
+        }
+      }
+
+      // ship vs fighter (fighters get a brief grace period right after spawning)
+      for (var k = 0; k < aliens.length; k++) {
+        var al = aliens[k];
+        if (al.hp <= 0) continue;
+        var ax = al.x + al.size / 2, ay = al.y + al.size / 2;
+        for (var f1 = 0; f1 < alienFighters.length; f1++) {
+          var ft = alienFighters[f1];
+          if (ft.dead || now - ft.spawnedAt < 500) continue;
+          var fx1 = ft.x + ft.size / 2, fy1 = ft.y + ft.size / 2;
+          var dxf = ax - fx1, dyf = ay - fy1;
+          if (Math.sqrt(dxf * dxf + dyf * dyf) < al.size / 2 + ft.size / 2) {
+            damageFighterHp(ft);
+          }
+        }
+      }
+
+      // fighter vs fighter
+      for (var p = 0; p < alienFighters.length; p++) {
+        var fa = alienFighters[p];
+        if (fa.dead || now - fa.spawnedAt < 500) continue;
+        var fax = fa.x + fa.size / 2, fay = fa.y + fa.size / 2;
+        for (var q = p + 1; q < alienFighters.length; q++) {
+          var fb = alienFighters[q];
+          if (fb.dead || now - fb.spawnedAt < 500) continue;
+          var fbx = fb.x + fb.size / 2, fby = fb.y + fb.size / 2;
+          var ddx = fax - fbx, ddy = fay - fby;
+          if (Math.sqrt(ddx * ddx + ddy * ddy) < fa.size / 2 + fb.size / 2) {
+            damageFighterHp(fa);
+            damageFighterHp(fb);
+          }
+        }
+      }
+
+      // sweep: destroy any ship or fighter that hit 0
+      for (var r = aliens.length - 1; r >= 0; r--) {
+        if (aliens[r].hp <= 0) destroyShip(aliens[r]);
+      }
+      for (var s = alienFighters.length - 1; s >= 0; s--) {
+        var df = alienFighters[s];
+        if (df.dead) {
+          spawnExplosionAt(df.x + df.size / 2, df.y + df.size / 2);
+          addStars(df.reward);
+          df.el.remove();
+          if (df.shieldEl) df.shieldEl.remove();
+          alienFighters.splice(s, 1);
+        }
+      }
     }
 
     function flashLifeGain() {
@@ -1301,16 +1414,10 @@
             al.hp--;
             beep(500);
             if (al.hp <= 0) {
-              spawnExplosionAt(alx, aly);
-              addStars(al.reward);
-              spawnAngrySwarm(alx, aly, al.swarmSize);
-              al.el.remove();
-              aliens.splice(k, 1);
+              destroyShip(al);
             } else {
               spawnImpactAt(alx, aly);
-              al.hpBadge.textContent = al.hp;
-              al.el.classList.add("flash");
-              setTimeout((function (el) { return function () { el.classList.remove("flash"); }; })(al.el), 150);
+              updateAlienHpVisual(al);
             }
             hit = true;
             break;
@@ -1497,11 +1604,7 @@
           var dx = ax - asx, dy = ay - asy;
           var dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < al.size / 2 + a.size / 2) {
-            spawnExplosionAt(ax, ay);
-            addStars(al.reward);
-            spawnAngrySwarm(ax, ay, al.swarmSize);
-            al.el.remove();
-            aliens.splice(i, 1);
+            destroyShip(al);
             respawnAsteroid(a);
             break;
           }
@@ -1560,6 +1663,7 @@
       checkRocketAlienCollisions();
       checkRocketMeleeFighterCollisions();
       checkAlienAsteroidCollisions();
+      checkAlienFriendlyFire();
       updateMiles();
       requestAnimationFrame(gameLoop);
     }
