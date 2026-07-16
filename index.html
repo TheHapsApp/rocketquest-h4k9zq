@@ -259,6 +259,24 @@
       background: linear-gradient(180deg, #fff, #ffd23f);
       box-shadow: 0 0 6px #ffd23f;
     }
+    .arrow {
+      position: absolute;
+      width: 16px;
+      height: 4px;
+      background: linear-gradient(90deg, #8b5a2b, #d2b48c);
+      border-radius: 2px;
+    }
+    .arrow::after {
+      content: "";
+      position: absolute;
+      right: -4px;
+      top: -3px;
+      width: 0;
+      height: 0;
+      border-top: 5px solid transparent;
+      border-bottom: 5px solid transparent;
+      border-left: 6px solid #d2b48c;
+    }
     .explosion {
       position: absolute;
       font-size: 3.2rem;
@@ -604,6 +622,8 @@
     var bullets = [];
     var aliens = [];
     var alienFighters = [];
+    var arrows = [];
+    var ARROW_SPEED = 3; // slow, dodgeable "10 mph" arrow
     var alienTimer = null;
     var starBankForLife = 0;
     var ALIEN_TIERS = [
@@ -847,8 +867,27 @@
         el: el, x: x, y: y,
         vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
         size: size, reward: shield ? shield.reward : 3,
-        shieldEl: shieldEl, shieldBadge: shieldBadge, shieldHp: shield ? shield.hp : 0
+        shieldEl: shieldEl, shieldBadge: shieldBadge, shieldHp: shield ? shield.hp : 0,
+        weapon: weapon,
+        nextArrowAt: weapon === "🏹" ? Date.now() + 1500 + Math.random() * 2000 : Infinity
       });
+    }
+
+    function fireArrow(f) {
+      var fx = f.x + f.size / 2, fy = f.y + f.size / 2;
+      var dx = rocketX - fx, dy = rocketY - fy;
+      var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      var vx = (dx / dist) * ARROW_SPEED;
+      var vy = (dy / dist) * ARROW_SPEED;
+      var angleDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      var el = document.createElement("div");
+      el.className = "arrow";
+      el.style.transform = "rotate(" + angleDeg + "deg)";
+      gw.appendChild(el);
+
+      arrows.push({ el: el, x: fx, y: fy, vx: vx, vy: vy, life: 500 });
+      beep(350);
     }
 
     function clearFighters() {
@@ -1189,6 +1228,7 @@
     }
 
     function updateFighters() {
+      var now = Date.now();
       alienFighters.forEach(function (f) {
         f.x += f.vx;
         f.y += f.vy;
@@ -1202,7 +1242,52 @@
           f.shieldEl.style.left = (f.x - 7) + "px";
           f.shieldEl.style.top = (f.y - 7) + "px";
         }
+        if (f.weapon === "🏹" && now >= f.nextArrowAt) {
+          fireArrow(f);
+          f.nextArrowAt = now + 2500 + Math.random() * 2500;
+        }
       });
+    }
+
+    function hitByArrow(ar) {
+      lives -= 0.5;
+      updateHud();
+      beep(120);
+      gameRocket.classList.add("hit");
+      invulnerable = true;
+      setTimeout(function () { gameRocket.classList.remove("hit"); invulnerable = false; }, 1200);
+      if (lives <= 0) crash();
+    }
+
+    function updateArrows() {
+      for (var i = arrows.length - 1; i >= 0; i--) {
+        var ar = arrows[i];
+        ar.x += ar.vx;
+        ar.y += ar.vy;
+        ar.life--;
+        if (ar.life <= 0 || ar.x < -30 || ar.x > window.innerWidth + 30 || ar.y < -30 || ar.y > window.innerHeight + 30) {
+          ar.el.remove();
+          arrows.splice(i, 1);
+          continue;
+        }
+        ar.el.style.left = ar.x + "px";
+        ar.el.style.top = ar.y + "px";
+
+        if (!invulnerable) {
+          var dx = rocketX - ar.x, dy = rocketY - ar.y;
+          var dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 22) {
+            ar.el.remove();
+            arrows.splice(i, 1);
+            hitByArrow(ar);
+          }
+        }
+      }
+    }
+
+    function clearArrows() {
+      arrows.forEach(function (ar) { ar.el.remove(); });
+      arrows = [];
     }
 
     function checkRocketAlienCollisions() {
@@ -1234,6 +1319,7 @@
       updateAsteroids();
       updateAliens();
       updateFighters();
+      updateArrows();
       updateBullets();
       checkRocketAsteroidCollisions();
       checkRocketAlienCollisions();
@@ -1254,6 +1340,7 @@
       clearBullets();
       clearAliens();
       clearFighters();
+      clearArrows();
       clearItems();
       initAsteroids();
       initStars();
@@ -1282,6 +1369,7 @@
       clearInterval(fuelTimer);
       clearTimeout(itemTimer);
       clearFighters();
+      clearArrows();
       clearItems();
       document.getElementById("gameScreen").style.display = "none";
       document.getElementById("buildScreen").parentElement.style.display = "block";
