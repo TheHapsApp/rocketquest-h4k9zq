@@ -385,6 +385,14 @@
     .alien.flash { filter: brightness(2.2); }
     .alien.dying { animation: dyingFlash 0.08s steps(1) infinite; }
     @keyframes dyingFlash { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.1; } }
+    .debris {
+      position: absolute;
+      background: linear-gradient(135deg, #dfe7ee, #6b7a8c);
+      border: 1px solid rgba(255,255,255,0.6);
+      transition: transform 1.4s ease-out, opacity 1.4s ease-out;
+      opacity: 1;
+      pointer-events: none;
+    }
     .fighter {
       position: absolute;
       border-radius: 50%;
@@ -1101,6 +1109,35 @@
     }
 
     // Explode, flash rapidly, then disappear.
+    function spawnDebris(x, y) {
+      var count = 6 + Math.floor(Math.random() * 3);
+      for (var i = 0; i < count; i++) {
+        var el = document.createElement("div");
+        el.className = "debris";
+        var size = 4 + Math.random() * 5;
+        el.style.width = size + "px";
+        el.style.height = size + "px";
+        el.style.left = x + "px";
+        el.style.top = y + "px";
+        gw.appendChild(el);
+
+        var angle = Math.random() * Math.PI * 2;
+        var dist = 60 + Math.random() * 100;
+        var dx = Math.cos(angle) * dist;
+        var dy = Math.sin(angle) * dist + 50; // drifting downward, off into deep space
+        var rot = Math.random() * 720 - 360;
+
+        (function (el, dx, dy, rot) {
+          requestAnimationFrame(function () {
+            el.style.transform = "translate(" + dx + "px, " + dy + "px) rotate(" + rot + "deg)";
+            el.style.opacity = "0";
+          });
+        })(el, dx, dy, rot);
+
+        setTimeout((function (el) { return function () { el.remove(); }; })(el), 1600);
+      }
+    }
+
     function destroyShip(al) {
       var ax = al.x + al.size / 2, ay = al.y + al.size / 2;
       spawnExplosionAt(ax, ay);
@@ -1109,7 +1146,10 @@
       var idx = aliens.indexOf(al);
       if (idx >= 0) aliens.splice(idx, 1);
       al.el.classList.add("dying");
-      setTimeout(function () { al.el.remove(); }, 400);
+      setTimeout(function () {
+        al.el.remove();
+        spawnDebris(ax, ay);
+      }, 400);
     }
 
     function updateAlienHpVisual(al) {
