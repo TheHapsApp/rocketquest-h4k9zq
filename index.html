@@ -92,15 +92,14 @@
     .fin-right { border-left: 18px solid #ffd23f; right: -17px; transition: border-left-color 0.15s ease; }
     .rocket-flame {
       width: 16px;
-      height: 0;
+      height: 14px;
       background: linear-gradient(180deg, #ffd23f, #ff6b4a, transparent);
       border-radius: 0 0 8px 8px;
-      transition: height 0.2s ease;
+      animation: flicker 0.15s ease infinite alternate;
     }
-    .rocket-unit.flying .rocket-flame { height: 30px; animation: flicker 0.15s ease infinite alternate; }
-    .rocket-unit.flying { animation: rocketShake 0.15s ease infinite alternate; }
     @keyframes flicker { 0% { opacity: 1; } 100% { opacity: 0.6; } }
-    @keyframes rocketShake { 0% { transform: translateX(-2px); } 100% { transform: translateX(2px); } }
+    .rocket-unit.hit { animation: hitBlink 0.15s steps(1) infinite; }
+    @keyframes hitBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0.25; } }
 
     /* ---- Build screen ---- */
     .rocket-preview-wrap {
@@ -141,57 +140,54 @@
       margin-top: 10px;
     }
     .big-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
-    .big-btn:disabled { opacity: 0.5; }
-    .small-btn {
-      display: block;
-      margin: 16px auto 0;
-      font-family: inherit;
-      font-size: 0.9rem;
-      color: #fff;
-      background: transparent;
-      border: 2px dashed rgba(255,255,255,0.6);
-      border-radius: 999px;
-      padding: 8px 18px;
-      cursor: pointer;
-      opacity: 0.85;
-    }
 
-    /* ---- Game screen ---- */
-    .hud {
+    /* ---- Fullscreen game screen ---- */
+    .game-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      background: linear-gradient(120deg, #0b1030, #241a52, #3a1c5c, #0b1030);
+      background-size: 400% 400%;
+      animation: flow 18s ease infinite;
+      overflow: hidden;
+      cursor: none;
+    }
+    .game-world { position: absolute; inset: 0; }
+    .game-hud {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      z-index: 5;
+      padding: 14px 16px 0;
+      pointer-events: none;
+    }
+    .hud-row {
       display: flex;
       justify-content: center;
-      gap: 20px;
-      font-size: 1.2rem;
+      gap: 18px;
+      font-size: 1.1rem;
       font-weight: bold;
-      margin-bottom: 16px;
-      text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.4);
+      margin-bottom: 10px;
     }
     .challenge-card {
-      background: rgba(255,255,255,0.14);
+      max-width: 340px;
+      margin: 0 auto 10px;
+      background: rgba(255,255,255,0.16);
       border: 3px solid #fff;
-      border-radius: 20px;
-      padding: 14px 16px;
-      margin-bottom: 18px;
+      border-radius: 18px;
+      padding: 10px 14px;
     }
-    .challenge-card.done { animation: popIn 0.4s ease; background: rgba(120,255,150,0.3); }
+    .challenge-card.done { animation: popIn 0.4s ease; background: rgba(120,255,150,0.35); }
     @keyframes popIn {
       0% { transform: scale(0.8); }
       60% { transform: scale(1.08); }
       100% { transform: scale(1); }
     }
-    .challenge-label { font-size: 0.85rem; opacity: 0.85; margin-bottom: 4px; }
-    .challenge-text { font-size: 1.05rem; font-weight: bold; }
+    .challenge-label { font-size: 0.8rem; opacity: 0.85; margin-bottom: 2px; }
+    .challenge-text { font-size: 1rem; font-weight: bold; }
+    .controls-hint { font-size: 0.85rem; opacity: 0.8; text-shadow: 1px 1px 0 rgba(0,0,0,0.4); }
 
-    .space {
-      position: relative;
-      height: 300px;
-      border: 3px solid rgba(255,255,255,0.35);
-      border-radius: 20px;
-      background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), transparent 70%);
-      overflow: hidden;
-      margin-bottom: 18px;
-      cursor: pointer;
-    }
     .asteroid {
       position: absolute;
       width: 44px;
@@ -202,23 +198,82 @@
       justify-content: center;
       font-size: 1.4rem;
       border: 3px solid rgba(255,255,255,0.6);
-      animation: drift 6s ease-in-out infinite;
     }
-    @keyframes drift {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-14px); }
-    }
-    .space .rocket-preview-wrap { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%) scale(1.1); margin: 0; }
-    .star-pop {
+    .floating-star {
       position: absolute;
-      font-size: 1.3rem;
+      font-size: 1.5rem;
+      animation: starGlow 1.4s ease-in-out infinite alternate;
+    }
+    @keyframes starGlow { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 1; transform: scale(1.2); } }
+    .bullet {
+      position: absolute;
+      width: 6px;
+      height: 18px;
+      border-radius: 4px;
+      background: linear-gradient(180deg, #fff, #ffd23f);
+      box-shadow: 0 0 6px #ffd23f;
+    }
+    .explosion {
+      position: absolute;
+      font-size: 3.2rem;
+      animation: boomPop 0.6s ease;
       pointer-events: none;
-      animation: starPop 0.7s ease forwards;
     }
-    @keyframes starPop {
-      0%   { opacity: 1; transform: translateY(0) scale(1); }
-      100% { opacity: 0; transform: translateY(-40px) scale(1.4); }
+    @keyframes boomPop {
+      0% { transform: scale(0.4); opacity: 1; }
+      70% { transform: scale(1.6); opacity: 1; }
+      100% { transform: scale(2); opacity: 0; }
     }
+    #gameRocket { position: absolute; z-index: 3; }
+
+    .shoot-fab {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 6;
+      width: 66px;
+      height: 66px;
+      border-radius: 50%;
+      border: 4px solid #fff;
+      background: rgba(255,107,74,0.55);
+      color: #fff;
+      font-size: 1.6rem;
+      cursor: pointer;
+    }
+    .corner-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 6;
+      font-family: inherit;
+      font-size: 0.8rem;
+      color: #fff;
+      background: rgba(0,0,0,0.35);
+      border: 2px dashed rgba(255,255,255,0.6);
+      border-radius: 999px;
+      padding: 6px 14px;
+      cursor: pointer;
+    }
+
+    .gameover-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      background: rgba(0,0,0,0.65);
+      align-items: center;
+      justify-content: center;
+    }
+    .gameover-card {
+      background: rgba(60,20,80,0.85);
+      border: 4px solid #fff;
+      border-radius: 26px;
+      padding: 30px 26px;
+      text-align: center;
+      max-width: 320px;
+    }
+    .gameover-card h2 { margin: 10px 0; text-shadow: 2px 2px 0 rgba(0,0,0,0.3); }
+    .gameover-card p { margin-bottom: 16px; font-size: 1rem; }
   </style>
 </head>
 <body>
@@ -257,42 +312,45 @@
 
       <button class="big-btn" id="blastOffBtn">🚀 Blast Off!</button>
     </div>
+  </div>
 
-    <!-- ==== GAME SCREEN ==== -->
-    <div id="gameScreen" style="display:none;">
-      <h1>🌌 Rocket Quest</h1>
-      <div class="hud">
+  <!-- ==== FULLSCREEN GAME SCREEN ==== -->
+  <div class="game-screen" id="gameScreen">
+    <div class="game-hud">
+      <div class="hud-row">
         <div>⭐ <span id="starsText">0</span></div>
         <div>🛰️ <span id="milesText">0</span> mi</div>
+        <div id="livesText">❤️❤️❤️</div>
       </div>
-
       <div class="challenge-card" id="challengeCard">
         <div class="challenge-label">🎯 Challenge</div>
         <div class="challenge-text" id="challengeText">-</div>
       </div>
+      <div class="controls-hint">🖱️ Move your mouse to fly &middot; Press A (or tap 🔫) to shoot</div>
+    </div>
 
-      <div class="space" id="spaceArea">
-        <div class="asteroid" data-color="red" style="top:10%; left:10%; background:#ff5555;">☄️</div>
-        <div class="asteroid" data-color="blue" style="top:15%; right:8%; background:#4fa8ff; animation-delay: 1s;">☄️</div>
-        <div class="asteroid" data-color="green" style="top:45%; left:6%; background:#4ade80; animation-delay: 2s;">☄️</div>
-        <div class="asteroid" data-color="purple" style="top:42%; right:12%; background:#b06bff; animation-delay: 0.5s;">☄️</div>
-
-        <div class="rocket-preview-wrap">
-          <div class="rocket-unit" id="gameRocket">
-            <div class="rocket-nose"></div>
-            <div class="rocket-body">
-              <div class="rocket-window"></div>
-              <div class="fin fin-left"></div>
-              <div class="fin fin-right"></div>
-            </div>
-            <div class="rocket-flame"></div>
-          </div>
+    <div class="game-world" id="gameWorld">
+      <div class="rocket-unit" id="gameRocket">
+        <div class="rocket-nose"></div>
+        <div class="rocket-body">
+          <div class="rocket-window"></div>
+          <div class="fin fin-left"></div>
+          <div class="fin fin-right"></div>
         </div>
+        <div class="rocket-flame"></div>
       </div>
-      <p class="sub" style="margin:0 0 10px;">Tap the sky for stars! Tap an asteroid to circle it!</p>
+    </div>
 
-      <button class="big-btn" id="flyBtn">🚀 Fly! (5 ⭐ → 10 mi)</button>
-      <button class="small-btn" id="rebuildBtn">🎨 Rebuild Rocket</button>
+    <button class="shoot-fab" id="shootFab">🔫</button>
+    <button class="corner-btn" id="rebuildBtn">🎨 Rebuild</button>
+
+    <div class="gameover-overlay" id="gameoverOverlay">
+      <div class="gameover-card">
+        <div style="font-size:3.2rem;">💥</div>
+        <h2>You Crashed!</h2>
+        <p id="gameoverStats"></p>
+        <button class="big-btn" id="flyAgainBtn">🔄 Fly Again</button>
+      </div>
     </div>
   </div>
 
@@ -341,36 +399,136 @@
       } catch (e) {}
     }
 
-    var stars = 0;
-    var miles = 0;
-    var currentChallenge = null;
-
+    /* ===================== GAME ===================== */
+    var ROCKET_W = 50, ROCKET_H = 95;
+    var gw = document.getElementById("gameWorld");
+    var gameRocket = document.getElementById("gameRocket");
     var starsText = document.getElementById("starsText");
     var milesText = document.getElementById("milesText");
+    var livesText = document.getElementById("livesText");
     var challengeText = document.getElementById("challengeText");
     var challengeCard = document.getElementById("challengeCard");
-    var spaceArea = document.getElementById("spaceArea");
-    var gameRocket = document.getElementById("gameRocket");
+
+    var stars = 0, miles = 0, lives = 3;
+    var currentChallenge = null;
+    var running = false;
+    var invulnerable = false;
+    var distanceAccum = 0;
+
+    var mouseX = window.innerWidth / 2, mouseY = window.innerHeight / 2;
+    var rocketX = mouseX, rocketY = mouseY;
+    var lastRocketX = rocketX, lastRocketY = rocketY;
+
+    function setPointer(x, y) { mouseX = x; mouseY = y; }
+    document.addEventListener("mousemove", function (e) { setPointer(e.clientX, e.clientY); });
+    document.addEventListener("touchmove", function (e) {
+      if (e.touches && e.touches[0]) setPointer(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    var lastShot = 0;
+    function shoot() {
+      if (!running) return;
+      var now = Date.now();
+      if (now - lastShot < 250) return;
+      lastShot = now;
+      var el = document.createElement("div");
+      el.className = "bullet";
+      gw.appendChild(el);
+      bullets.push({ el: el, x: rocketX - 3, y: rocketY - ROCKET_H / 2 });
+      beep(750);
+    }
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "a" || e.key === "A") shoot();
+    });
+    document.getElementById("shootFab").addEventListener("click", shoot);
+
+    var ASTEROID_SPECS = [
+      { color: "red", bg: "#ff5555" },
+      { color: "blue", bg: "#4fa8ff" },
+      { color: "green", bg: "#4ade80" },
+      { color: "purple", bg: "#b06bff" }
+    ];
+    var asteroids = [];
+    var starsList = [];
+    var bullets = [];
+
+    function randPos(size) {
+      return {
+        x: Math.random() * (window.innerWidth - size),
+        y: Math.random() * (window.innerHeight - size - 60) + 60
+      };
+    }
+
+    function spawnAsteroid(spec) {
+      var el = document.createElement("div");
+      el.className = "asteroid";
+      el.textContent = "☄️";
+      el.style.background = spec.bg;
+      gw.appendChild(el);
+      var size = 44;
+      var pos = randPos(size);
+      var angle = Math.random() * Math.PI * 2;
+      var speed = 1 + Math.random() * 1.2;
+      return { el: el, x: pos.x, y: pos.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color: spec.color, size: size };
+    }
+
+    function initAsteroids() {
+      asteroids.forEach(function (a) { a.el.remove(); });
+      asteroids = ASTEROID_SPECS.map(spawnAsteroid);
+    }
+
+    function respawnAsteroid(a) {
+      var pos = randPos(a.size);
+      a.x = pos.x; a.y = pos.y;
+      var angle = Math.random() * Math.PI * 2;
+      var speed = 1 + Math.random() * 1.2;
+      a.vx = Math.cos(angle) * speed;
+      a.vy = Math.sin(angle) * speed;
+    }
+
+    function spawnStar() {
+      var el = document.createElement("div");
+      el.className = "floating-star";
+      el.textContent = "⭐";
+      gw.appendChild(el);
+      var size = 26;
+      var pos = randPos(size);
+      return { el: el, x: pos.x, y: pos.y, size: size };
+    }
+
+    function initStars() {
+      starsList.forEach(function (s) { s.el.remove(); });
+      starsList = [];
+      for (var i = 0; i < 5; i++) starsList.push(spawnStar());
+    }
+
+    function clearBullets() {
+      bullets.forEach(function (b) { b.el.remove(); });
+      bullets = [];
+    }
 
     function updateHud() {
       starsText.textContent = stars;
       milesText.textContent = miles;
+      var hearts = "";
+      for (var i = 0; i < 3; i++) hearts += (i < lives ? "❤️" : "🖤");
+      livesText.textContent = hearts;
     }
 
     function randomChallenge() {
-      var types = ["miles", "stars", "circle"];
+      var types = ["miles", "stars", "shoot"];
       var type = types[Math.floor(Math.random() * types.length)];
       if (type === "miles") {
-        var target = miles + (Math.floor(Math.random() * 4) + 2) * 10;
-        return { type: "miles", target: target, text: "🛰️ Travel to " + target + " miles total!" };
+        var target = miles + (Math.floor(Math.random() * 4) + 2) * 5;
+        return { type: "miles", target: target, text: "🛰️ Fly " + target + " total miles!" };
       }
       if (type === "stars") {
-        var target2 = stars + (Math.floor(Math.random() * 3) + 2) * 5;
-        return { type: "stars", target: target2, text: "⭐ Collect " + target2 + " stars total!" };
+        var target2 = stars + (Math.floor(Math.random() * 3) + 2) * 3;
+        return { type: "stars", target: target2, text: "⭐ Collect " + target2 + " total stars!" };
       }
       var colors = ["red", "blue", "green", "purple"];
       var color = colors[Math.floor(Math.random() * colors.length)];
-      return { type: "circle", color: color, text: "☄️ Circle the " + color.toUpperCase() + " asteroid!" };
+      return { type: "shoot", color: color, text: "🔫 Shoot the " + color.toUpperCase() + " asteroid!" };
     }
 
     function newChallenge() {
@@ -386,10 +544,7 @@
       updateHud();
       beep(950);
       challengeText.textContent = "🎉 Nice! +10 bonus stars!";
-      setTimeout(function () {
-        newChallenge();
-        checkChallenge();
-      }, 1400);
+      setTimeout(function () { newChallenge(); checkChallenge(); }, 1400);
     }
 
     function checkChallenge() {
@@ -398,64 +553,161 @@
       else if (currentChallenge.type === "stars" && stars >= currentChallenge.target) completeChallenge();
     }
 
-    spaceArea.addEventListener("click", function (e) {
-      if (e.target.closest(".asteroid")) return; // asteroid handles its own tap
-      var rect = spaceArea.getBoundingClientRect();
-      var x = e.clientX - rect.left;
-      var y = e.clientY - rect.top;
-      var star = document.createElement("div");
-      star.className = "star-pop";
-      star.textContent = "⭐";
-      star.style.left = x + "px";
-      star.style.top = y + "px";
-      spaceArea.appendChild(star);
-      setTimeout(function () { star.remove(); }, 700);
-
-      stars += 1;
+    function hitByAsteroid(a) {
+      lives--;
       updateHud();
-      beep(600 + Math.random() * 200);
-      checkChallenge();
-    });
+      beep(120);
+      gameRocket.classList.add("hit");
+      invulnerable = true;
+      setTimeout(function () { gameRocket.classList.remove("hit"); invulnerable = false; }, 1200);
+      respawnAsteroid(a);
+      if (lives <= 0) crash();
+    }
 
-    document.querySelectorAll(".asteroid").forEach(function (ast) {
-      ast.addEventListener("click", function (e) {
-        e.stopPropagation();
-        stars += 1;
-        updateHud();
-        beep(300);
-        if (currentChallenge && currentChallenge.type === "circle" && currentChallenge.color === ast.getAttribute("data-color")) {
-          completeChallenge();
-        }
-        checkChallenge();
+    function crash() {
+      running = false;
+      beep(80);
+      var boom = document.createElement("div");
+      boom.className = "explosion";
+      boom.textContent = "💥";
+      boom.style.left = (rocketX - 30) + "px";
+      boom.style.top = (rocketY - 30) + "px";
+      gw.appendChild(boom);
+      gameRocket.style.display = "none";
+      setTimeout(function () {
+        boom.remove();
+        document.getElementById("gameoverStats").textContent = "⭐ " + stars + " stars flown with 🛰️ " + miles + " miles!";
+        document.getElementById("gameoverOverlay").style.display = "flex";
+      }, 550);
+    }
+
+    function updateRocket() {
+      rocketX = mouseX;
+      rocketY = mouseY;
+      gameRocket.style.left = (rocketX - ROCKET_W / 2) + "px";
+      gameRocket.style.top = (rocketY - ROCKET_H / 2) + "px";
+    }
+
+    function updateAsteroids() {
+      asteroids.forEach(function (a) {
+        a.x += a.vx;
+        a.y += a.vy;
+        if (a.x <= 0 || a.x >= window.innerWidth - a.size) a.vx *= -1;
+        if (a.y <= 0 || a.y >= window.innerHeight - a.size) a.vy *= -1;
+        a.x = Math.max(0, Math.min(window.innerWidth - a.size, a.x));
+        a.y = Math.max(0, Math.min(window.innerHeight - a.size, a.y));
+        a.el.style.left = a.x + "px";
+        a.el.style.top = a.y + "px";
       });
-    });
+    }
 
-    document.getElementById("flyBtn").addEventListener("click", function () {
-      if (stars < 5) {
-        beep(150);
-        challengeText.textContent = "Need more stars first! ⭐";
-        setTimeout(function () { challengeText.textContent = currentChallenge.text; }, 1200);
-        return;
+    function updateBullets() {
+      for (var i = bullets.length - 1; i >= 0; i--) {
+        var b = bullets[i];
+        b.y -= 10;
+        if (b.y < -20) { b.el.remove(); bullets.splice(i, 1); continue; }
+        b.el.style.left = b.x + "px";
+        b.el.style.top = b.y + "px";
+        var hit = false;
+        for (var j = 0; j < asteroids.length; j++) {
+          var a = asteroids[j];
+          var ax = a.x + a.size / 2, ay = a.y + a.size / 2;
+          if (Math.abs(b.x - ax) < a.size / 2 + 6 && Math.abs(b.y - ay) < a.size / 2 + 6) {
+            b.el.remove(); bullets.splice(i, 1);
+            stars += 2;
+            updateHud();
+            beep(950);
+            if (currentChallenge && currentChallenge.type === "shoot" && currentChallenge.color === a.color) completeChallenge();
+            respawnAsteroid(a);
+            checkChallenge();
+            hit = true;
+            break;
+          }
+        }
       }
-      stars -= 5;
-      miles += 10;
+    }
+
+    function checkRocketAsteroidCollisions() {
+      if (invulnerable) return;
+      for (var i = 0; i < asteroids.length; i++) {
+        var a = asteroids[i];
+        var ax = a.x + a.size / 2, ay = a.y + a.size / 2;
+        var dx = rocketX - ax, dy = rocketY - ay;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < a.size / 2 + 20) { hitByAsteroid(a); break; }
+      }
+    }
+
+    function checkRocketStarCollisions() {
+      for (var i = starsList.length - 1; i >= 0; i--) {
+        var s = starsList[i];
+        var sx = s.x + s.size / 2, sy = s.y + s.size / 2;
+        var dx = rocketX - sx, dy = rocketY - sy;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < s.size / 2 + 22) {
+          s.el.remove();
+          starsList.splice(i, 1);
+          stars += 1;
+          updateHud();
+          beep(600 + Math.random() * 200);
+          checkChallenge();
+          starsList.push(spawnStar());
+        }
+      }
+    }
+
+    function updateMiles() {
+      var dx = rocketX - lastRocketX, dy = rocketY - lastRocketY;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      distanceAccum += d;
+      lastRocketX = rocketX; lastRocketY = rocketY;
+      var newMiles = Math.floor(distanceAccum / 60);
+      if (newMiles !== miles) { miles = newMiles; updateHud(); checkChallenge(); }
+    }
+
+    function gameLoop() {
+      if (!running) return;
+      updateRocket();
+      updateAsteroids();
+      updateBullets();
+      checkRocketAsteroidCollisions();
+      checkRocketStarCollisions();
+      updateMiles();
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      document.getElementById("buildScreen").parentElement.style.display = "none";
+      document.getElementById("gameScreen").style.display = "block";
+      document.getElementById("gameoverOverlay").style.display = "none";
+      gameRocket.style.display = "";
+
+      stars = 0; miles = 0; lives = 3; distanceAccum = 0;
       updateHud();
-      gameRocket.classList.add("flying");
-      beep(700);
-      setTimeout(function () { gameRocket.classList.remove("flying"); }, 500);
-      checkChallenge();
-    });
+      clearBullets();
+      initAsteroids();
+      initStars();
+      newChallenge();
+
+      mouseX = window.innerWidth / 2; mouseY = window.innerHeight / 2;
+      rocketX = mouseX; rocketY = mouseY;
+      lastRocketX = rocketX; lastRocketY = rocketY;
+
+      running = true;
+      requestAnimationFrame(gameLoop);
+    }
 
     document.getElementById("blastOffBtn").addEventListener("click", function () {
-      document.getElementById("buildScreen").style.display = "none";
-      document.getElementById("gameScreen").style.display = "block";
-      newChallenge();
       beep(800);
+      startGame();
     });
 
+    document.getElementById("flyAgainBtn").addEventListener("click", startGame);
+
     document.getElementById("rebuildBtn").addEventListener("click", function () {
+      running = false;
       document.getElementById("gameScreen").style.display = "none";
-      document.getElementById("buildScreen").style.display = "block";
+      document.getElementById("buildScreen").parentElement.style.display = "block";
     });
   </script>
 </body>
