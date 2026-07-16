@@ -394,6 +394,11 @@
       opacity: 1;
       pointer-events: none;
     }
+    .debris.blue {
+      background: linear-gradient(135deg, #8ecfff, #1a5fa8);
+      border-color: rgba(200,230,255,0.8);
+      box-shadow: 0 0 6px rgba(120,200,255,0.7);
+    }
     .fighter {
       position: absolute;
       border-radius: 50%;
@@ -1125,7 +1130,7 @@
       var count = 14 + Math.floor(Math.random() * 7);
       for (var i = 0; i < count; i++) {
         var el = document.createElement("div");
-        el.className = "debris";
+        el.className = "debris" + (Math.random() < 0.4 ? " blue" : "");
         var size = 4 + Math.random() * 5;
         el.style.width = size + "px";
         el.style.height = size + "px";
