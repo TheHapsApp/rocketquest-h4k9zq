@@ -899,10 +899,10 @@
 
       var el = document.createElement("div");
       el.className = "fighter" + (angry ? " angry" : "") + (isCaptain ? " captain" : "");
-      el.textContent = isCaptain ? "👑🏹⚔️" : (isFlaming ? "👾🔥" : "👾" + weapon);
+      el.textContent = isCaptain ? "👾" : (isFlaming ? "👾🔥" : "👾" + weapon);
       el.style.width = size + "px";
       el.style.height = size + "px";
-      el.style.fontSize = isCaptain ? "11px" : "13px";
+      el.style.fontSize = isCaptain ? "18px" : "13px";
       gw.appendChild(el);
 
       var shieldEl = null, shieldBadge = null;
