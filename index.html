@@ -32,15 +32,20 @@
       inset: 0;
       z-index: 0;
       pointer-events: none;
-      background-image: radial-gradient(circle, #ffffff 1.5px, transparent 1.6px);
-      background-size: 60px 60px;
-      opacity: 0.5;
-      animation: twinkle 3s ease-in-out infinite alternate;
+      background-image:
+        radial-gradient(circle, #ffffff 1px, transparent 1.2px),
+        radial-gradient(circle, #ffffff 1.5px, transparent 1.7px),
+        radial-gradient(circle, #ffffff 2px, transparent 2.2px);
+      background-size: 40px 40px, 90px 90px, 170px 170px;
+      background-position: 0 0, 22px 38px, 75px 12px;
+      opacity: 0.6;
+      animation: twinkle 4s ease-in-out infinite alternate;
     }
     @keyframes twinkle {
-      0% { opacity: 0.25; }
-      100% { opacity: 0.6; }
+      0% { opacity: 0.3; }
+      100% { opacity: 0.7; }
     }
+    .constellation { position: fixed; z-index: 0; pointer-events: none; opacity: 0.55; }
     .page { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; }
     h1 {
       font-size: clamp(1.6rem, 7vw, 2.4rem);
@@ -152,9 +157,7 @@
       position: fixed;
       inset: 0;
       z-index: 10;
-      background: linear-gradient(120deg, #0b1030, #241a52, #3a1c5c, #0b1030);
-      background-size: 400% 400%;
-      animation: flow 18s ease infinite;
+      /* transparent — the body's gradient + starfield + constellations show through */
       overflow: hidden;
       cursor: none;
     }
@@ -423,6 +426,33 @@
 </head>
 <body>
   <div class="twinkle-layer"></div>
+
+  <svg class="constellation" style="top:6%; left:5%;" width="140" height="100" viewBox="0 0 140 100">
+    <polyline points="10,80 35,55 65,60 90,35 115,45" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+    <circle cx="10" cy="80" r="2.2" fill="#fff"/>
+    <circle cx="35" cy="55" r="1.8" fill="#fff"/>
+    <circle cx="65" cy="60" r="2.6" fill="#fff"/>
+    <circle cx="90" cy="35" r="1.8" fill="#fff"/>
+    <circle cx="115" cy="45" r="2.2" fill="#fff"/>
+  </svg>
+
+  <svg class="constellation" style="top:10%; right:6%;" width="150" height="90" viewBox="0 0 150 90">
+    <polyline points="10,50 40,20 75,50 105,20 140,50" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+    <circle cx="10" cy="50" r="2" fill="#fff"/>
+    <circle cx="40" cy="20" r="2.4" fill="#fff"/>
+    <circle cx="75" cy="50" r="1.8" fill="#fff"/>
+    <circle cx="105" cy="20" r="2.4" fill="#fff"/>
+    <circle cx="140" cy="50" r="2" fill="#fff"/>
+  </svg>
+
+  <svg class="constellation" style="bottom:12%; left:8%;" width="140" height="110" viewBox="0 0 140 110">
+    <polyline points="30,20 45,55 75,60 105,55 115,90" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1"/>
+    <circle cx="30" cy="20" r="2" fill="#fff"/>
+    <circle cx="45" cy="55" r="2.2" fill="#fff"/>
+    <circle cx="75" cy="60" r="2.6" fill="#fff"/>
+    <circle cx="105" cy="55" r="2" fill="#fff"/>
+    <circle cx="115" cy="90" r="1.8" fill="#fff"/>
+  </svg>
 
   <div class="page">
     <!-- ==== BUILD SCREEN ==== -->
