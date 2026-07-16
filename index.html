@@ -207,6 +207,46 @@
       animation: starGlow 1.4s ease-in-out infinite alternate;
     }
     @keyframes starGlow { 0% { opacity: 0.7; transform: scale(1); } 100% { opacity: 1; transform: scale(1.2); } }
+    .item-pickup {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(255,210,63,0.3);
+      border: 3px solid #ffd23f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      animation: starGlow 1.2s ease-in-out infinite alternate;
+      cursor: pointer;
+    }
+    .item-badge {
+      position: absolute;
+      bottom: -6px;
+      right: -6px;
+      background: #ff3b3b;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: bold;
+      border-radius: 999px;
+      min-width: 18px;
+      height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #fff;
+    }
+    .item-hud {
+      max-width: 320px;
+      margin: 0 auto 8px;
+      background: rgba(255,210,63,0.22);
+      border: 3px solid #ffd23f;
+      border-radius: 999px;
+      padding: 6px 14px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
     .bullet {
       position: absolute;
       width: 6px;
@@ -367,7 +407,8 @@
         <div class="challenge-label">🎯 Challenge</div>
         <div class="challenge-text" id="challengeText">-</div>
       </div>
-      <div class="controls-hint">🖱️ Move your mouse to fly &middot; Press A (or tap 🔫) to shoot &middot; Shoot ⭐ for fuel!</div>
+      <div class="item-hud" id="itemHud" style="display:none;">🎒 <span id="heldItemText"></span> &mdash; press U!</div>
+      <div class="controls-hint">🖱️ Move your mouse to fly &middot; Press A (or tap 🔫) to shoot &middot; Shoot ⭐ for fuel! &middot; Right-click items to grab, press U to use!</div>
     </div>
 
     <div class="game-world" id="gameWorld">
@@ -470,19 +511,40 @@
     }, { passive: true });
 
     var lastShot = 0;
+    var shotCount = 1;
+    var shotTimer = null;
+    var cloneUntil = 0;
+    var cloneEl = null;
+
+    function fireBulletAt(x, y) {
+      var el = document.createElement("div");
+      el.className = "bullet";
+      gw.appendChild(el);
+      bullets.push({ el: el, x: x, y: y });
+    }
+
     function shoot() {
       if (!running) return;
       var now = Date.now();
       if (now - lastShot < 250) return;
       lastShot = now;
-      var el = document.createElement("div");
-      el.className = "bullet";
-      gw.appendChild(el);
-      bullets.push({ el: el, x: rocketX - 3, y: rocketY - ROCKET_H / 2 });
+
+      var baseX = rocketX - 3, baseY = rocketY - ROCKET_H / 2;
+      fireBulletAt(baseX, baseY);
+      if (shotCount >= 3) {
+        fireBulletAt(baseX - 16, baseY + 6);
+        fireBulletAt(baseX + 16, baseY + 6);
+      }
+      if (shotCount >= 5) {
+        fireBulletAt(baseX - 30, baseY + 14);
+        fireBulletAt(baseX + 30, baseY + 14);
+      }
+      if (cloneEl && now < cloneUntil) fireBulletAt(baseX + 70, baseY);
       beep(750);
     }
     document.addEventListener("keydown", function (e) {
       if (e.key === "a" || e.key === "A") shoot();
+      if ((e.key === "u" || e.key === "U") && heldItem) useItem();
     });
     document.getElementById("shootFab").addEventListener("click", shoot);
 
@@ -505,6 +567,18 @@
       { size: 88,  hp: 20, reward: 40, damage: 1.5 },
       { size: 110, hp: 30, reward: 60, damage: 2 }
     ];
+
+    var ITEM_SPECS = [
+      { type: "mega",  emoji: "🔫", badge: "3" },
+      { type: "ultra", emoji: "🔫", badge: "5" },
+      { type: "clone", emoji: "👯", badge: "" }
+    ];
+    var ITEM_NAMES = { mega: "Mega Gun (x3 shots)", ultra: "Ultra Gun (x5 shots)", clone: "Clone (extra shot)" };
+    var worldItems = [];
+    var itemTimer = null;
+    var heldItem = null;
+    var itemHud = document.getElementById("itemHud");
+    var heldItemText = document.getElementById("heldItemText");
 
     function randPos(size) {
       return {
@@ -559,6 +633,103 @@
     function clearBullets() {
       bullets.forEach(function (b) { b.el.remove(); });
       bullets = [];
+    }
+
+    function hasItemType(type) {
+      for (var i = 0; i < worldItems.length; i++) {
+        if (worldItems[i].type === type) return true;
+      }
+      return false;
+    }
+
+    function spawnItem() {
+      var spec = ITEM_SPECS[Math.floor(Math.random() * ITEM_SPECS.length)];
+      if (hasItemType(spec.type)) return;
+      var el = document.createElement("div");
+      el.className = "item-pickup";
+      el.textContent = spec.emoji;
+      if (spec.badge) {
+        var b = document.createElement("span");
+        b.className = "item-badge";
+        b.textContent = spec.badge;
+        el.appendChild(b);
+      }
+      gw.appendChild(el);
+      var size = 40;
+      var pos = randPos(size);
+      el.style.left = pos.x + "px";
+      el.style.top = pos.y + "px";
+      el.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        pickUpItem(spec.type, el);
+      });
+      worldItems.push({ el: el, type: spec.type, x: pos.x, y: pos.y, size: size });
+    }
+
+    function scheduleNextItem() {
+      clearTimeout(itemTimer);
+      itemTimer = setTimeout(function () {
+        if (running) { spawnItem(); scheduleNextItem(); }
+      }, 8000 + Math.random() * 7000);
+    }
+
+    function clearItems() {
+      worldItems.forEach(function (w) { w.el.remove(); });
+      worldItems = [];
+      heldItem = null;
+      shotCount = 1;
+      clearTimeout(shotTimer);
+      cloneUntil = 0;
+      if (cloneEl) cloneEl.style.display = "none";
+      updateItemHud();
+    }
+
+    function pickUpItem(type, el) {
+      if (!running) return;
+      heldItem = type;
+      updateItemHud();
+      beep(1000);
+      for (var i = 0; i < worldItems.length; i++) {
+        if (worldItems[i].el === el) { worldItems.splice(i, 1); break; }
+      }
+      el.remove();
+    }
+
+    function updateItemHud() {
+      if (heldItem) {
+        heldItemText.textContent = ITEM_NAMES[heldItem];
+        itemHud.style.display = "block";
+      } else {
+        itemHud.style.display = "none";
+      }
+    }
+
+    function activateMultiShot(n, durationMs) {
+      shotCount = n;
+      clearTimeout(shotTimer);
+      shotTimer = setTimeout(function () { shotCount = 1; }, durationMs);
+    }
+
+    function activateClone(durationMs) {
+      cloneUntil = Date.now() + durationMs;
+      if (!cloneEl) {
+        cloneEl = gameRocket.cloneNode(true);
+        cloneEl.removeAttribute("id");
+        cloneEl.style.position = "absolute";
+        cloneEl.style.opacity = "0.7";
+        cloneEl.style.pointerEvents = "none";
+        gw.appendChild(cloneEl);
+      }
+      cloneEl.style.display = "";
+    }
+
+    function useItem() {
+      if (heldItem === "mega") activateMultiShot(3, 10000);
+      else if (heldItem === "ultra") activateMultiShot(5, 10000);
+      else if (heldItem === "clone") activateClone(10000);
+      beep(1200);
+      heldItem = null;
+      updateItemHud();
     }
 
     function spawnAlien() {
@@ -757,6 +928,8 @@
       running = false;
       clearTimeout(alienTimer);
       clearInterval(fuelTimer);
+      clearTimeout(itemTimer);
+      clearTimeout(shotTimer);
       beep(80);
       spawnExplosionAt(rocketX, rocketY);
       gameRocket.style.display = "none";
@@ -772,6 +945,8 @@
       running = false;
       clearTimeout(alienTimer);
       clearInterval(fuelTimer);
+      clearTimeout(itemTimer);
+      clearTimeout(shotTimer);
       beep(100);
       gameRocket.style.display = "none";
       setTimeout(function () {
@@ -787,6 +962,16 @@
       rocketY = mouseY;
       gameRocket.style.left = (rocketX - ROCKET_W / 2) + "px";
       gameRocket.style.top = (rocketY - ROCKET_H / 2) + "px";
+
+      if (cloneEl) {
+        if (Date.now() < cloneUntil) {
+          cloneEl.style.display = "";
+          cloneEl.style.left = (rocketX - ROCKET_W / 2 + 70) + "px";
+          cloneEl.style.top = (rocketY - ROCKET_H / 2) + "px";
+        } else {
+          cloneEl.style.display = "none";
+        }
+      }
     }
 
     function updateAsteroids() {
@@ -997,10 +1182,12 @@
       clearBullets();
       clearAliens();
       clearFighters();
+      clearItems();
       initAsteroids();
       initStars();
       newChallenge();
       scheduleNextAlien();
+      scheduleNextItem();
 
       mouseX = window.innerWidth / 2; mouseY = window.innerHeight / 2;
       rocketX = mouseX; rocketY = mouseY;
@@ -1021,9 +1208,15 @@
       running = false;
       clearTimeout(alienTimer);
       clearInterval(fuelTimer);
+      clearTimeout(itemTimer);
       clearFighters();
+      clearItems();
       document.getElementById("gameScreen").style.display = "none";
       document.getElementById("buildScreen").parentElement.style.display = "block";
+    });
+
+    document.getElementById("gameScreen").addEventListener("contextmenu", function (e) {
+      e.preventDefault();
     });
   </script>
 </body>
