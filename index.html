@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Keep this page off Google so it stays our secret -->
+  <meta name="robots" content="noindex, nofollow">
+  <title>Ben's Rocket Quest</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9A%80%3C/text%3E%3C/svg%3E">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+    html, body { height: 100%; }
+    body {
+      font-family: "Comic Sans MS", "Trebuchet MS", system-ui, sans-serif;
+      min-height: 100vh;
+      color: #fff;
+      text-align: center;
+      background: linear-gradient(120deg, #0b1030, #241a52, #3a1c5c, #0b1030);
+      background-size: 400% 400%;
+      animation: flow 18s ease infinite;
+      padding: 24px 16px 60px;
+      position: relative;
+      overflow-x: hidden;
+    }
+    @keyframes flow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .twinkle-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle, #ffffff 1.5px, transparent 1.6px);
+      background-size: 60px 60px;
+      opacity: 0.5;
+      animation: twinkle 3s ease-in-out infinite alternate;
+    }
+    @keyframes twinkle {
+      0% { opacity: 0.25; }
+      100% { opacity: 0.6; }
+    }
+    .page { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; }
+    h1 {
+      font-size: clamp(1.6rem, 7vw, 2.4rem);
+      text-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+    }
+    .sub {
+      font-size: clamp(0.9rem, 3.2vw, 1.1rem);
+      margin: 8px 0 24px;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+    }
+
+    /* ---- Rocket shape (shared between build + game screens) ---- */
+    .rocket-unit { display: inline-flex; flex-direction: column; align-items: center; position: relative; }
+    .rocket-nose {
+      width: 0; height: 0;
+      border-left: 22px solid transparent;
+      border-right: 22px solid transparent;
+      border-bottom: 36px solid #ff5fa2;
+      transition: border-bottom-color 0.15s ease;
+    }
+    .rocket-body {
+      width: 44px;
+      height: 76px;
+      background: #3fd0ff;
+      border-radius: 8px 8px 4px 4px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s ease;
+      border: 3px solid rgba(255,255,255,0.7);
+      border-top: none;
+    }
+    .rocket-window {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #cdefff;
+      border: 3px solid #fff;
+    }
+    .fin {
+      position: absolute;
+      width: 0;
+      height: 0;
+      border-top: 26px solid transparent;
+      bottom: -4px;
+    }
+    .fin-left { border-right: 18px solid #ffd23f; left: -17px; transition: border-right-color 0.15s ease; }
+    .fin-right { border-left: 18px solid #ffd23f; right: -17px; transition: border-left-color 0.15s ease; }
+    .rocket-flame {
+      width: 16px;
+      height: 0;
+      background: linear-gradient(180deg, #ffd23f, #ff6b4a, transparent);
+      border-radius: 0 0 8px 8px;
+      transition: height 0.2s ease;
+    }
+    .rocket-unit.flying .rocket-flame { height: 30px; animation: flicker 0.15s ease infinite alternate; }
+    .rocket-unit.flying { animation: rocketShake 0.15s ease infinite alternate; }
+    @keyframes flicker { 0% { opacity: 1; } 100% { opacity: 0.6; } }
+    @keyframes rocketShake { 0% { transform: translateX(-2px); } 100% { transform: translateX(2px); } }
+
+    /* ---- Build screen ---- */
+    .rocket-preview-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0 30px;
+      transform: scale(1.4);
+    }
+    .picker-group { margin-bottom: 20px; text-align: left; }
+    .picker-label {
+      font-size: 1rem;
+      font-weight: bold;
+      margin-bottom: 8px;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+    }
+    .swatch-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .swatch {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.5);
+      cursor: pointer;
+    }
+    .swatch.active { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,0.4); }
+
+    /* ---- Buttons (shared) ---- */
+    .big-btn {
+      font-family: inherit;
+      font-size: clamp(1rem, 4.5vw, 1.3rem);
+      font-weight: bold;
+      color: #fff;
+      background: rgba(255,255,255,0.18);
+      border: 4px solid #fff;
+      border-radius: 999px;
+      padding: 14px 28px;
+      box-shadow: 0 7px 0 rgba(0,0,0,0.3);
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .big-btn:active { transform: translateY(5px); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
+    .big-btn:disabled { opacity: 0.5; }
+    .small-btn {
+      display: block;
+      margin: 16px auto 0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      color: #fff;
+      background: transparent;
+      border: 2px dashed rgba(255,255,255,0.6);
+      border-radius: 999px;
+      padding: 8px 18px;
+      cursor: pointer;
+      opacity: 0.85;
+    }
+
+    /* ---- Game screen ---- */
+    .hud {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 16px;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+    }
+    .challenge-card {
+      background: rgba(255,255,255,0.14);
+      border: 3px solid #fff;
+      border-radius: 20px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+    }
+    .challenge-card.done { animation: popIn 0.4s ease; background: rgba(120,255,150,0.3); }
+    @keyframes popIn {
+      0% { transform: scale(0.8); }
+      60% { transform: scale(1.08); }
+      100% { transform: scale(1); }
+    }
+    .challenge-label { font-size: 0.85rem; opacity: 0.85; margin-bottom: 4px; }
+    .challenge-text { font-size: 1.05rem; font-weight: bold; }
+
+    .space {
+      position: relative;
+      height: 300px;
+      border: 3px solid rgba(255,255,255,0.35);
+      border-radius: 20px;
+      background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.06), transparent 70%);
+      overflow: hidden;
+      margin-bottom: 18px;
+      cursor: pointer;
+    }
+    .asteroid {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      border: 3px solid rgba(255,255,255,0.6);
+      animation: drift 6s ease-in-out infinite;
+    }
+    @keyframes drift {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-14px); }
+    }
+    .space .rocket-preview-wrap { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%) scale(1.1); margin: 0; }
+    .star-pop {
+      position: absolute;
+      font-size: 1.3rem;
+      pointer-events: none;
+      animation: starPop 0.7s ease forwards;
+    }
+    @keyframes starPop {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-40px) scale(1.4); }
+    }
+  </style>
+</head>
+<body>
+  <div class="twinkle-layer"></div>
+
+  <div class="page">
+    <!-- ==== BUILD SCREEN ==== -->
+    <div id="buildScreen">
+      <h1>🚀 Build Your Rocket!</h1>
+      <p class="sub">Pick your colors, then blast off!</p>
+
+      <div class="rocket-preview-wrap">
+        <div class="rocket-unit">
+          <div class="rocket-nose"></div>
+          <div class="rocket-body">
+            <div class="rocket-window"></div>
+            <div class="fin fin-left"></div>
+            <div class="fin fin-right"></div>
+          </div>
+          <div class="rocket-flame"></div>
+        </div>
+      </div>
+
+      <div class="picker-group">
+        <div class="picker-label">Nose Cone</div>
+        <div class="swatch-row" data-part="nose"></div>
+      </div>
+      <div class="picker-group">
+        <div class="picker-label">Body</div>
+        <div class="swatch-row" data-part="body"></div>
+      </div>
+      <div class="picker-group">
+        <div class="picker-label">Fins</div>
+        <div class="swatch-row" data-part="fins"></div>
+      </div>
+
+      <button class="big-btn" id="blastOffBtn">🚀 Blast Off!</button>
+    </div>
+
+    <!-- ==== GAME SCREEN ==== -->
+    <div id="gameScreen" style="display:none;">
+      <h1>🌌 Rocket Quest</h1>
+      <div class="hud">
+        <div>⭐ <span id="starsText">0</span></div>
+        <div>🛰️ <span id="milesText">0</span> mi</div>
+      </div>
+
+      <div class="challenge-card" id="challengeCard">
+        <div class="challenge-label">🎯 Challenge</div>
+        <div class="challenge-text" id="challengeText">-</div>
+      </div>
+
+      <div class="space" id="spaceArea">
+        <div class="asteroid" data-color="red" style="top:10%; left:10%; background:#ff5555;">☄️</div>
+        <div class="asteroid" data-color="blue" style="top:15%; right:8%; background:#4fa8ff; animation-delay: 1s;">☄️</div>
+        <div class="asteroid" data-color="green" style="top:45%; left:6%; background:#4ade80; animation-delay: 2s;">☄️</div>
+        <div class="asteroid" data-color="purple" style="top:42%; right:12%; background:#b06bff; animation-delay: 0.5s;">☄️</div>
+
+        <div class="rocket-preview-wrap">
+          <div class="rocket-unit" id="gameRocket">
+            <div class="rocket-nose"></div>
+            <div class="rocket-body">
+              <div class="rocket-window"></div>
+              <div class="fin fin-left"></div>
+              <div class="fin fin-right"></div>
+            </div>
+            <div class="rocket-flame"></div>
+          </div>
+        </div>
+      </div>
+      <p class="sub" style="margin:0 0 10px;">Tap the sky for stars! Tap an asteroid to circle it!</p>
+
+      <button class="big-btn" id="flyBtn">🚀 Fly! (5 ⭐ → 10 mi)</button>
+      <button class="small-btn" id="rebuildBtn">🎨 Rebuild Rocket</button>
+    </div>
+  </div>
+
+  <script>
+    var COLORS = ["#ff5fa2", "#ffd23f", "#3fd0ff", "#8a5cff", "#4ade80", "#ff6b4a", "#ffffff", "#ff3b3b"];
+    var rocketColors = { nose: "#ff5fa2", body: "#3fd0ff", fins: "#ffd23f" };
+
+    function applyRocketColors() {
+      document.querySelectorAll(".rocket-nose").forEach(function (el) { el.style.borderBottomColor = rocketColors.nose; });
+      document.querySelectorAll(".rocket-body").forEach(function (el) { el.style.background = rocketColors.body; });
+      document.querySelectorAll(".fin-left").forEach(function (el) { el.style.borderRightColor = rocketColors.fins; });
+      document.querySelectorAll(".fin-right").forEach(function (el) { el.style.borderLeftColor = rocketColors.fins; });
+    }
+
+    document.querySelectorAll(".swatch-row").forEach(function (row) {
+      var part = row.getAttribute("data-part");
+      COLORS.forEach(function (color) {
+        var sw = document.createElement("div");
+        sw.className = "swatch";
+        sw.style.background = color;
+        if (color === rocketColors[part]) sw.classList.add("active");
+        sw.addEventListener("click", function () {
+          rocketColors[part] = color;
+          row.querySelectorAll(".swatch").forEach(function (s) { s.classList.remove("active"); });
+          sw.classList.add("active");
+          applyRocketColors();
+          beep(500 + COLORS.indexOf(color) * 40);
+        });
+        row.appendChild(sw);
+      });
+    });
+    applyRocketColors();
+
+    var audioCtx = null;
+    function beep(freq) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = "triangle";
+        o.frequency.value = freq;
+        g.gain.value = 0.15;
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start();
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+        o.stop(audioCtx.currentTime + 0.25);
+      } catch (e) {}
+    }
+
+    var stars = 0;
+    var miles = 0;
+    var currentChallenge = null;
+
+    var starsText = document.getElementById("starsText");
+    var milesText = document.getElementById("milesText");
+    var challengeText = document.getElementById("challengeText");
+    var challengeCard = document.getElementById("challengeCard");
+    var spaceArea = document.getElementById("spaceArea");
+    var gameRocket = document.getElementById("gameRocket");
+
+    function updateHud() {
+      starsText.textContent = stars;
+      milesText.textContent = miles;
+    }
+
+    function randomChallenge() {
+      var types = ["miles", "stars", "circle"];
+      var type = types[Math.floor(Math.random() * types.length)];
+      if (type === "miles") {
+        var target = miles + (Math.floor(Math.random() * 4) + 2) * 10;
+        return { type: "miles", target: target, text: "🛰️ Travel to " + target + " miles total!" };
+      }
+      if (type === "stars") {
+        var target2 = stars + (Math.floor(Math.random() * 3) + 2) * 5;
+        return { type: "stars", target: target2, text: "⭐ Collect " + target2 + " stars total!" };
+      }
+      var colors = ["red", "blue", "green", "purple"];
+      var color = colors[Math.floor(Math.random() * colors.length)];
+      return { type: "circle", color: color, text: "☄️ Circle the " + color.toUpperCase() + " asteroid!" };
+    }
+
+    function newChallenge() {
+      currentChallenge = randomChallenge();
+      challengeText.textContent = currentChallenge.text;
+    }
+
+    function completeChallenge() {
+      challengeCard.classList.remove("done");
+      void challengeCard.offsetWidth;
+      challengeCard.classList.add("done");
+      stars += 10;
+      updateHud();
+      beep(950);
+      challengeText.textContent = "🎉 Nice! +10 bonus stars!";
+      setTimeout(function () {
+        newChallenge();
+        checkChallenge();
+      }, 1400);
+    }
+
+    function checkChallenge() {
+      if (!currentChallenge) return;
+      if (currentChallenge.type === "miles" && miles >= currentChallenge.target) completeChallenge();
+      else if (currentChallenge.type === "stars" && stars >= currentChallenge.target) completeChallenge();
+    }
+
+    spaceArea.addEventListener("click", function (e) {
+      if (e.target.closest(".asteroid")) return; // asteroid handles its own tap
+      var rect = spaceArea.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var y = e.clientY - rect.top;
+      var star = document.createElement("div");
+      star.className = "star-pop";
+      star.textContent = "⭐";
+      star.style.left = x + "px";
+      star.style.top = y + "px";
+      spaceArea.appendChild(star);
+      setTimeout(function () { star.remove(); }, 700);
+
+      stars += 1;
+      updateHud();
+      beep(600 + Math.random() * 200);
+      checkChallenge();
+    });
+
+    document.querySelectorAll(".asteroid").forEach(function (ast) {
+      ast.addEventListener("click", function (e) {
+        e.stopPropagation();
+        stars += 1;
+        updateHud();
+        beep(300);
+        if (currentChallenge && currentChallenge.type === "circle" && currentChallenge.color === ast.getAttribute("data-color")) {
+          completeChallenge();
+        }
+        checkChallenge();
+      });
+    });
+
+    document.getElementById("flyBtn").addEventListener("click", function () {
+      if (stars < 5) {
+        beep(150);
+        challengeText.textContent = "Need more stars first! ⭐";
+        setTimeout(function () { challengeText.textContent = currentChallenge.text; }, 1200);
+        return;
+      }
+      stars -= 5;
+      miles += 10;
+      updateHud();
+      gameRocket.classList.add("flying");
+      beep(700);
+      setTimeout(function () { gameRocket.classList.remove("flying"); }, 500);
+      checkChallenge();
+    });
+
+    document.getElementById("blastOffBtn").addEventListener("click", function () {
+      document.getElementById("buildScreen").style.display = "none";
+      document.getElementById("gameScreen").style.display = "block";
+      newChallenge();
+      beep(800);
+    });
+
+    document.getElementById("rebuildBtn").addEventListener("click", function () {
+      document.getElementById("gameScreen").style.display = "none";
+      document.getElementById("buildScreen").style.display = "block";
+    });
+  </script>
+</body>
+</html>
