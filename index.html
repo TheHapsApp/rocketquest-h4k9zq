@@ -1714,12 +1714,17 @@
     // Ordinary fighters (lone alien drones without a ship) are harmless on
     // contact — only the "angry" revenge swarm from a destroyed ship rams you.
 
+    // 1.5 real feet of mouse travel = 5 in-game miles.
+    // 1.5 ft = 18 in, and the web's reference pixel is 96px/inch, so
+    // 18 * 96 = 1728px of on-screen mouse movement = 5 miles.
+    var PIXELS_PER_MILE = (18 * 96) / 5;
+
     function updateMiles() {
       var dx = rocketX - lastRocketX, dy = rocketY - lastRocketY;
       var d = Math.sqrt(dx * dx + dy * dy);
       distanceAccum += d;
       lastRocketX = rocketX; lastRocketY = rocketY;
-      var newMiles = Math.floor(distanceAccum / 60);
+      var newMiles = Math.floor(distanceAccum / PIXELS_PER_MILE);
       if (newMiles !== miles) { miles = newMiles; updateHud(); checkChallenge(); }
     }
 
