@@ -764,10 +764,10 @@
     var alienTimer = null;
     var starBankForLife = 0;
     var ALIEN_TIERS = [
-      { size: 44,  hp: 5,  reward: 10, damage: 0.5, fighterInterval: 30000, swarmSize: 2 },
-      { size: 64,  hp: 10, reward: 20, damage: 1,   fighterInterval: 15000, swarmSize: 3 },
-      { size: 88,  hp: 20, reward: 40, damage: 1.5, fighterInterval: 7500,  swarmSize: 4 },
-      { size: 110, hp: 30, reward: 60, damage: 2,   fighterInterval: 5000,  swarmSize: 6 }
+      { size: 62,  hp: 5,  reward: 10, damage: 0.5, fighterInterval: 30000, swarmSize: 2 },
+      { size: 88,  hp: 10, reward: 20, damage: 1,   fighterInterval: 15000, swarmSize: 3 },
+      { size: 120, hp: 20, reward: 40, damage: 1.5, fighterInterval: 7500,  swarmSize: 4 },
+      { size: 152, hp: 30, reward: 60, damage: 2,   fighterInterval: 5000,  swarmSize: 6 }
     ];
 
     var ITEM_SPECS = [
@@ -1192,6 +1192,13 @@
       }
     }
 
+    // A ship rams straight through a fighter — no surviving that, shield or not.
+    function instantKillFighter(f) {
+      if (f.dead) return;
+      f.dead = true;
+      if (f.shieldEl) { f.shieldEl.remove(); f.shieldEl = null; }
+    }
+
     function checkAlienFriendlyFire() {
       var now = Date.now();
 
@@ -1226,7 +1233,7 @@
           var fx1 = ft.x + ft.size / 2, fy1 = ft.y + ft.size / 2;
           var dxf = ax - fx1, dyf = ay - fy1;
           if (Math.sqrt(dxf * dxf + dyf * dyf) < al.size / 2 + ft.size / 2) {
-            damageFighterHp(ft);
+            instantKillFighter(ft);
           }
         }
       }
