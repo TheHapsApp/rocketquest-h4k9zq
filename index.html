@@ -1702,7 +1702,8 @@
       if (invulnerable) return;
       for (var i = 0; i < alienFighters.length; i++) {
         var f = alienFighters[i];
-        if (!f.angry && !(f.captain && f.captainType === "swordbow")) continue;
+        var isMelee = f.angry || f.weapon === "⚔️" || (f.captain && f.captainType === "swordbow");
+        if (!isMelee) continue;
         var fx = f.x + f.size / 2, fy = f.y + f.size / 2;
         var dx = rocketX - fx, dy = rocketY - fy;
         var dist = Math.sqrt(dx * dx + dy * dy);
